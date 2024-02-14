@@ -1004,4 +1004,26 @@ static int romFindOldestBlock(Rom* pROM, int* piBlock, __anon_0x5219D eTypeCache
     return 0;
 }
 
-#pragma GLOBAL_ASM("asm/non_matchings/rom/romFindFreeCache.s")
+static int romFindFreeCache(Rom* pROM, int* piCache, __anon_0x5219D eType) {
+    int iBlock;
+
+    if (eType == 0) {
+        for (iBlock = 0; iBlock < pROM->nCountBlockRAM; iBlock++) {
+            if (!(pROM->anBlockCachedRAM[iBlock >> 3] & (1 << (iBlock & 7)))) {
+                *piCache = iBlock;
+                return 1;
+            }
+        }
+    } else if (eType == 1) {
+        for (iBlock = 0; iBlock < 0x7FE; iBlock++) {
+            if (!(pROM->anBlockCachedARAM[iBlock >> 3] & (1 << (iBlock & 7)))) {
+                *piCache = -(iBlock + 1);
+                return 1;
+            }
+        }
+    } else {
+        return 0;
+    }
+
+    return 0;
+}
