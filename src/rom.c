@@ -816,7 +816,47 @@ s32 romLoadRange(Rom* pROM, s32 begin, s32 end, s32* blockCount, s32 whichBlock,
 }
 #endif
 
-#pragma GLOBAL_ASM("asm/non_matchings/rom/romLoadBlock.s")
+static void __romLoadBlock_CompleteGCN(long nResult, DVDFileInfo* fileInfo);
+static int __romLoadBlock_Complete(Rom* pROM);
+
+static int romLoadBlock(Rom* pROM, int iBlock, int iCache, int (*pCallback)()) {
+    u8* anData;
+    int nSizeRead;
+    u32 nSize;
+    u32 nOffset;
+
+    nOffset = iBlock << 0xD;
+    if ((nSize = pROM->nSize - nOffset) > 0x2000) {
+        nSize = 0x2000;
+    }
+    anData = &pROM->pCacheRAM[iCache << 0xD];
+    nSizeRead = (nSize + 0x1F) & 0xFFFFFFE0;
+
+    pROM->load.nSize = nSize;
+    pROM->load.iBlock = iBlock;
+    pROM->load.iCache = iCache;
+    pROM->load.anData = anData;
+    pROM->load.pCallback = pCallback;
+
+    if (pCallback == NULL) {
+        if (!simulatorDVDRead(&pROM->fileInfo, anData, nSizeRead, nOffset + pROM->offsetToRom, NULL)) {
+            return 0;
+        }
+    } else {
+        pROM->load.nOffset = nOffset;
+        pROM->load.nSizeRead = nSizeRead;
+        if (!simulatorDVDRead(&pROM->fileInfo, anData, nSizeRead, nOffset + pROM->offsetToRom,
+                              &__romLoadBlock_CompleteGCN)) {
+            return 0;
+        }
+        return 1;
+    }
+
+    if (!__romLoadBlock_Complete(pROM)) {
+        return 0;
+    }
+    return 1;
+}
 
 void __romLoadBlock_CompleteGCN(long nResult) {
     Rom* pROM = gpSystem->apObject[SOT_ROM];
