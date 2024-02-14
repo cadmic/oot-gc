@@ -957,7 +957,53 @@ static int romSetBlockCache(Rom* pROM, int iBlock, __anon_0x5219D eType) {
     return 1;
 }
 
-#pragma GLOBAL_ASM("asm/non_matchings/rom/romMakeFreeCache.s")
+static int romFindOldestBlock(Rom* pROM, int* piBlock, __anon_0x5219D eTypeCache, int whichBlock);
+
+inline void romMarkBlockAsFree(Rom* pROM, int iBlock) {
+    RomBlock* pBlock;
+    int iCache;
+
+    pBlock = &pROM->aBlock[iBlock];
+    iCache = pBlock->iCache;
+    if (iCache < 0) {
+        iCache = -(iCache + 1);
+        pROM->anBlockCachedARAM[iCache >> 3] &= ~(1 << (iCache & 7));
+    } else {
+        pROM->anBlockCachedRAM[iCache >> 3] &= ~(1 << (iCache & 7));
+    }
+    pBlock->nSize = 0;
+}
+
+static int romMakeFreeCache(Rom* pROM, int* piCache, __anon_0x5219D eType) {
+    int iCache;
+    int iBlockOldest;
+
+    if (eType == 0) {
+        if (!romFindFreeCache(pROM, &iCache, 0)) {
+            if (romFindOldestBlock(pROM, &iBlockOldest, 0, 2)) {
+                iCache = pROM->aBlock[iBlockOldest].iCache;
+                if (!romSetBlockCache(pROM, iBlockOldest, 1) && romFindOldestBlock(pROM, &iBlockOldest, 0, 0)) {
+                    iCache = pROM->aBlock[iBlockOldest].iCache;
+                    romMarkBlockAsFree(pROM, iBlockOldest);
+                }
+            } else {
+                return 0;
+            }
+        }
+    } else {
+        if (!romFindFreeCache(pROM, &iCache, 1)) {
+            if (romFindOldestBlock(pROM, &iBlockOldest, 1, 0)) {
+                iCache = pROM->aBlock[iBlockOldest].iCache;
+                romMarkBlockAsFree(pROM, iBlockOldest);
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    *piCache = iCache;
+    return 1;
+}
 
 static int romFindOldestBlock(Rom* pROM, int* piBlock, __anon_0x5219D eTypeCache, int whichBlock) {
     RomBlock* pBlock;
