@@ -959,6 +959,49 @@ static int romSetBlockCache(Rom* pROM, int iBlock, __anon_0x5219D eType) {
 
 #pragma GLOBAL_ASM("asm/non_matchings/rom/romMakeFreeCache.s")
 
-#pragma GLOBAL_ASM("asm/non_matchings/rom/romFindOldestBlock.s")
+static int romFindOldestBlock(Rom* pROM, int* piBlock, __anon_0x5219D eTypeCache, int whichBlock) {
+    RomBlock* pBlock;
+    int iBlock;
+    int iBlockOldest;
+    unsigned int nTick;
+    unsigned int nTickDelta;
+    unsigned int nTickDeltaOldest;
+
+    nTick = pROM->nTick;
+    nTickDeltaOldest = 0;
+
+    for (iBlock = 0; iBlock < 4096; iBlock++) {
+        pBlock = &pROM->aBlock[iBlock];
+        if ((pBlock->nSize != 0) &&
+            (((eTypeCache == 0) && (pBlock->iCache >= 0)) || ((eTypeCache == 1) && (pBlock->iCache < 0)))) {
+            if (pBlock->nTickUsed > nTick) {
+                nTickDelta = -1 - (pBlock->nTickUsed - nTick);
+            } else {
+                nTickDelta = nTick - pBlock->nTickUsed;
+            }
+            if (whichBlock == 0) {
+                if ((nTickDelta > nTickDeltaOldest) && (pBlock->keep == 0)) {
+                    iBlockOldest = iBlock;
+                    nTickDeltaOldest = nTickDelta;
+                }
+            } else if (whichBlock == 1) {
+                if ((nTickDelta > nTickDeltaOldest) && (pBlock->keep == 1)) {
+                    iBlockOldest = iBlock;
+                    nTickDeltaOldest = nTickDelta;
+                }
+            } else if (nTickDelta > nTickDeltaOldest) {
+                iBlockOldest = iBlock;
+                nTickDeltaOldest = nTickDelta;
+            }
+        }
+    }
+
+    if (nTickDeltaOldest != 0) {
+        *piBlock = iBlockOldest;
+        return 1;
+    }
+
+    return 0;
+}
 
 #pragma GLOBAL_ASM("asm/non_matchings/rom/romFindFreeCache.s")
