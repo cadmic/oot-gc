@@ -892,7 +892,70 @@ s32 __romLoadBlock_Complete(Rom* pROM) {
     return 1;
 }
 
-#pragma GLOBAL_ASM("asm/non_matchings/rom/romSetBlockCache.s")
+u32 ARGetDMAStatus(void);
+void ARStartDMA(u32 type, u32 mainmem_addr, u32 aram_addr, u32 length);
+void DCInvalidateRange(void* addr, u32 nBytes);
+u32 ARGetBaseAddress(void);
+static int romMakeFreeCache(Rom* pROM, int* piCache, __anon_0x5219D eType);
+
+static int romSetBlockCache(Rom* pROM, int iBlock, __anon_0x5219D eType) {
+    RomBlock* pBlock;
+    int iCacheRAM;
+    int iCacheARAM;
+    int nOffsetRAM;
+    int nOffsetARAM;
+
+    pBlock = &pROM->aBlock[iBlock];
+    if ((eType == 0 && pBlock->iCache >= 0) || (eType == 1 && pBlock->iCache < 0)) {
+        return 1;
+    }
+
+    if (eType == 0) {
+        iCacheARAM = -(pBlock->iCache + 1);
+        if (!romMakeFreeCache(pROM, &iCacheRAM, 0)) {
+            return 0;
+        }
+
+        nOffsetRAM = iCacheRAM << 0xD;
+        nOffsetARAM = iCacheARAM << 0xD;
+        nOffsetARAM += ARGetBaseAddress();
+
+        while (ARGetDMAStatus()) {}
+
+        ARStartDMA(1, (u32)&pROM->pCacheRAM[nOffsetRAM], nOffsetARAM, 0x2000);
+        DCInvalidateRange(&pROM->pCacheRAM[nOffsetRAM], 0x2000);
+
+        pROM->anBlockCachedARAM[iCacheARAM >> 3] &= ~(1 << (iCacheARAM & 7));
+        pROM->anBlockCachedRAM[iCacheRAM >> 3] |= (1 << (iCacheRAM & 7));
+        pBlock->iCache = iCacheRAM;
+    } else if (eType == 1) {
+        iCacheRAM = pBlock->iCache;
+        if (!romMakeFreeCache(pROM, &iCacheARAM, 1)) {
+            return 0;
+        }
+        iCacheARAM = -(iCacheARAM + 1);
+
+        nOffsetRAM = iCacheRAM << 0xD;
+        nOffsetARAM = iCacheARAM << 0xD;
+        nOffsetARAM += ARGetBaseAddress();
+
+        DCStoreRange(&pROM->pCacheRAM[nOffsetRAM], 0x2000);
+
+        while (ARGetDMAStatus()) {}
+
+        ARStartDMA(0, (u32)&pROM->pCacheRAM[nOffsetRAM], nOffsetARAM, 0x2000);
+
+        pROM->anBlockCachedRAM[iCacheRAM >> 3] &= ~(1 << (iCacheRAM & 7));
+        pROM->anBlockCachedARAM[iCacheARAM >> 3] |= (1 << (iCacheARAM & 7));
+        pBlock->iCache = -(iCacheARAM + 1);
+    } else {
+        return 0;
+    }
+
+    while (ARGetDMAStatus()) {}
+
+    return 1;
+}
 
 #pragma GLOBAL_ASM("asm/non_matchings/rom/romMakeFreeCache.s")
 
