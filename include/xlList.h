@@ -17,12 +17,12 @@ typedef struct tXL_LIST {
     /* 0xC */ void* pNodeNext;
 } tXL_LIST; // size = 0x10
 
-s32 xlListReset(void);
-s32 xlListSetup(void);
-s32 xlListTestItem(tXL_LIST* pList, void* pItem);
-s32 xlListFreeItem(tXL_LIST* pList, void** ppItem);
-s32 xlListMakeItem(tXL_LIST* pList, void** ppItem);
-s32 xlListFree(tXL_LIST** ppList);
-s32 xlListMake(tXL_LIST** ppList);
+BOOL xlListReset(void);
+BOOL xlListSetup(void);
+BOOL xlListTestItem(tXL_LIST* pList, void* pItem);
+BOOL xlListFreeItem(tXL_LIST* pList, void** ppItem);
+BOOL xlListMakeItem(tXL_LIST* pList, void** ppItem);
+BOOL xlListFree(tXL_LIST** ppList);
+BOOL xlListMake(tXL_LIST** ppList);
 
 #endif

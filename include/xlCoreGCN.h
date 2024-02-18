@@ -4,9 +4,9 @@
 #include <dolphin/types.h>
 
 void xlCoreBeforeRender(void);
-s32 xlCoreHiResolution(void);
-s32 xlCoreGetArgument(s32 iArgument, char** pszArgument);
+BOOL xlCoreHiResolution(void);
+BOOL xlCoreGetArgument(s32 iArgument, char** pszArgument);
 s32 xlCoreGetArgumentCount(void);
-s32 xlCoreReset(void);
+BOOL xlCoreReset(void);
 
 #endif

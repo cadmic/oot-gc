@@ -8,6 +8,6 @@ typedef struct Code {
     /* 0x00 */ void* pHost;
 } Code; // size = 0x04
 
-s32 codeEvent(Code* pCode, s32 nEvent, void* pArgument);
+BOOL codeEvent(Code* pCode, s32 nEvent, void* pArgument);
 
 #endif

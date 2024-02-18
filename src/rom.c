@@ -12,8 +12,8 @@
 #include "xlCoreGCN.h"
 #include "xlObject.h"
 
-static s32 romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType);
-static s32 romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType);
+static BOOL romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType);
+static BOOL romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType);
 
 _XL_OBJECTTYPE gClassROM = {
     "ROM",
@@ -72,35 +72,35 @@ static u32 ganOffsetBlock_URAZLJ[198] = {
     0x01F45A0F, 0x01F45A10, 0x01F4F24F, 0x01F4F250, 0x01F57B7F, 0x01F57B80, 0x01F6255F, 0x01F62560, 0x01F739DF,
 };
 
-static s32 gbProgress;
+static BOOL gbProgress;
 static void* gpImageBack;
 static s32 iImage;
 
-static s32 romFindFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
+static BOOL romFindFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
     s32 iBlock;
 
     if (eType == RCT_RAM) {
         for (iBlock = 0; iBlock < pROM->nCountBlockRAM; iBlock++) {
             if (!(pROM->anBlockCachedRAM[iBlock >> 3] & (1 << (iBlock & 7)))) {
                 *piCache = iBlock;
-                return 1;
+                return TRUE;
             }
         }
     } else if (eType == RCT_ARAM) {
         for (iBlock = 0; iBlock < ARRAY_COUNT(pROM->anBlockCachedARAM); iBlock++) {
             if (!(pROM->anBlockCachedARAM[iBlock >> 3] & (1 << (iBlock & 7)))) {
                 *piCache = -(iBlock + 1);
-                return 1;
+                return TRUE;
             }
         }
     } else {
-        return 0;
+        return FALSE;
     }
 
-    return 0;
+    return FALSE;
 }
 
-static s32 romFindOldestBlock(Rom* pROM, s32* piBlock, RomCacheType eTypeCache, s32 whichBlock) {
+static BOOL romFindOldestBlock(Rom* pROM, s32* piBlock, RomCacheType eTypeCache, s32 whichBlock) {
     RomBlock* pBlock;
     s32 iBlock;
     s32 iBlockOldest;
@@ -139,10 +139,10 @@ static s32 romFindOldestBlock(Rom* pROM, s32* piBlock, RomCacheType eTypeCache, 
 
     if (nTickDeltaOldest != 0) {
         *piBlock = iBlockOldest;
-        return 1;
+        return TRUE;
     }
 
-    return 0;
+    return FALSE;
 }
 
 inline void romMarkBlockAsFree(Rom* pROM, s32 iBlock) {
@@ -160,7 +160,7 @@ inline void romMarkBlockAsFree(Rom* pROM, s32 iBlock) {
     pBlock->nSize = 0;
 }
 
-static s32 romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
+static BOOL romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
     s32 iCache;
     s32 iBlockOldest;
 
@@ -174,7 +174,7 @@ static s32 romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
                     romMarkBlockAsFree(pROM, iBlockOldest);
                 }
             } else {
-                return 0;
+                return FALSE;
             }
         }
     } else {
@@ -183,16 +183,16 @@ static s32 romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
                 iCache = pROM->aBlock[iBlockOldest].iCache;
                 romMarkBlockAsFree(pROM, iBlockOldest);
             } else {
-                return 0;
+                return FALSE;
             }
         }
     }
 
     *piCache = iCache;
-    return 1;
+    return TRUE;
 }
 
-static s32 romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType) {
+static BOOL romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType) {
     RomBlock* pBlock;
     s32 iCacheRAM;
     s32 iCacheARAM;
@@ -201,13 +201,13 @@ static s32 romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType) {
 
     pBlock = &pROM->aBlock[iBlock];
     if ((eType == RCT_RAM && pBlock->iCache >= 0) || (eType == RCT_ARAM && pBlock->iCache < 0)) {
-        return 1;
+        return TRUE;
     }
 
     if (eType == RCT_RAM) {
         iCacheARAM = -(pBlock->iCache + 1);
         if (!romMakeFreeCache(pROM, &iCacheRAM, RCT_RAM)) {
-            return 0;
+            return FALSE;
         }
 
         nOffsetRAM = iCacheRAM * 0x2000;
@@ -225,7 +225,7 @@ static s32 romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType) {
     } else if (eType == RCT_ARAM) {
         iCacheRAM = pBlock->iCache;
         if (!romMakeFreeCache(pROM, &iCacheARAM, RCT_ARAM)) {
-            return 0;
+            return FALSE;
         }
         iCacheARAM = -(iCacheARAM + 1);
 
@@ -243,15 +243,15 @@ static s32 romSetBlockCache(Rom* pROM, s32 iBlock, RomCacheType eType) {
         pROM->anBlockCachedARAM[iCacheARAM >> 3] |= (1 << (iCacheARAM & 7));
         pBlock->iCache = -(iCacheARAM + 1);
     } else {
-        return 0;
+        return FALSE;
     }
 
     while (ARGetDMAStatus()) {}
 
-    return 1;
+    return TRUE;
 }
 
-static s32 __romLoadBlock_Complete(Rom* pROM) {
+static BOOL __romLoadBlock_Complete(Rom* pROM) {
     s32 iBlock;
 
     if (pROM->bFlip) {
@@ -272,10 +272,10 @@ static s32 __romLoadBlock_Complete(Rom* pROM) {
     pROM->anBlockCachedRAM[pROM->load.iCache >> 3] |= (1 << (pROM->load.iCache & 7));
 
     if ((pROM->load.pCallback != NULL) && !pROM->load.pCallback()) {
-        return 0;
+        return FALSE;
     }
 
-    return 1;
+    return TRUE;
 }
 
 static void __romLoadBlock_CompleteGCN(long nResult, DVDFileInfo* fileInfo) {
@@ -285,7 +285,7 @@ static void __romLoadBlock_CompleteGCN(long nResult, DVDFileInfo* fileInfo) {
     pROM->load.bDone = 1;
 }
 
-static s32 romLoadBlock(Rom* pROM, s32 iBlock, s32 iCache, UnknownCallbackFunc pCallback) {
+static BOOL romLoadBlock(Rom* pROM, s32 iBlock, s32 iCache, UnknownCallbackFunc pCallback) {
     u8* anData;
     s32 nSizeRead;
     u32 nSize;
@@ -306,26 +306,26 @@ static s32 romLoadBlock(Rom* pROM, s32 iBlock, s32 iCache, UnknownCallbackFunc p
 
     if (pCallback == NULL) {
         if (!simulatorDVDRead(&pROM->fileInfo, anData, nSizeRead, nOffset + pROM->offsetToRom, NULL)) {
-            return 0;
+            return FALSE;
         }
     } else {
         pROM->load.nOffset = nOffset;
         pROM->load.nSizeRead = nSizeRead;
         if (!simulatorDVDRead(&pROM->fileInfo, anData, nSizeRead, nOffset + pROM->offsetToRom,
                               &__romLoadBlock_CompleteGCN)) {
-            return 0;
+            return FALSE;
         }
-        return 1;
+        return TRUE;
     }
 
     if (!__romLoadBlock_Complete(pROM)) {
-        return 0;
+        return FALSE;
     }
-    return 1;
+    return TRUE;
 }
 
-static s32 romLoadRange(Rom* pROM, s32 begin, s32 end, s32* blockCount, s32 whichBlock,
-                        ProgressCallbackFunc* pProgressCallback) {
+static BOOL romLoadRange(Rom* pROM, s32 begin, s32 end, s32* blockCount, s32 whichBlock,
+                         ProgressCallbackFunc* pProgressCallback) {
     s32 iCache;
     u32 iBlock;
     u32 iBlockLast;
@@ -338,11 +338,11 @@ static s32 romLoadRange(Rom* pROM, s32 begin, s32 end, s32* blockCount, s32 whic
 
         if (pROM->aBlock[iBlock].nSize == 0) {
             if (!romMakeFreeCache(pROM, &iCache, RCT_RAM)) {
-                return 0;
+                return FALSE;
             }
 
             if (!romLoadBlock(pROM, iBlock, iCache, NULL)) {
-                return 0;
+                return FALSE;
             }
         }
 
@@ -354,10 +354,10 @@ static s32 romLoadRange(Rom* pROM, s32 begin, s32 end, s32* blockCount, s32 whic
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-static s32 romCacheGame_ZELDA(f32 rProgress) {
+static BOOL romCacheGame_ZELDA(f32 rProgress) {
     s32 nSize;
     Mtx44 matrix44;
     GXTexObj textureObject;
@@ -365,8 +365,8 @@ static s32 romCacheGame_ZELDA(f32 rProgress) {
     f32 var_f1;
     s32 temp_r31;
 
-    if (gbDisplayedError != 0) {
-        gbDisplayedError = 0;
+    if (gbDisplayedError) {
+        gbDisplayedError = FALSE;
 
         TEXGetGXTexObjFromPalette(gpImageBack, &textureObject, 0);
         xlCoreBeforeRender();
@@ -411,7 +411,7 @@ static s32 romCacheGame_ZELDA(f32 rProgress) {
     if (!(iImage & 7)) {
         VIWaitForRetrace();
 
-        if (gbProgress != 0) {
+        if (gbProgress) {
             var_f1 = (rProgress / 2.0f) + 0.5f;
         } else {
             var_f1 = rProgress / 2.0f;
@@ -419,27 +419,27 @@ static s32 romCacheGame_ZELDA(f32 rProgress) {
         temp_r31 = (s32)(400.0f * var_f1);
 
         if (!_frameDrawRectangle(gpSystem->pFrame, 0x4083407D, 120, 430, 400, 8)) {
-            return 0;
+            return FALSE;
         }
 
         if (!_frameDrawRectangle(gpSystem->pFrame, 0x8F9B8F7C, 120, 430, temp_r31, 8)) {
-            return 0;
+            return FALSE;
         }
     }
 
     iImage += 1;
     if (rProgress == 1.0f) {
-        gbProgress = 1;
+        gbProgress = TRUE;
     }
-    return 1;
+    return TRUE;
 }
 
-static s32 romCacheGame(Rom* pROM) {
+static BOOL romCacheGame(Rom* pROM) {
     s32 blockCount;
     s32 nSize;
     char* szName;
-    s32 bIsCZLE;
-    s32 bIsCZLJ;
+    BOOL bIsCZLE;
+    BOOL bIsCZLJ;
     tXL_FILE* pFile;
 
     blockCount = 0;
@@ -469,55 +469,55 @@ static s32 romCacheGame(Rom* pROM) {
             nSize = pFile->nSize;
             gpImageBack = (u8*)((Ram*)((System*)pROM->pHost)->apObject[SOT_RAM])->pBuffer + 0x300000;
             if (xlFileGet(pFile, gpImageBack, nSize) == 0) {
-                return 0;
+                return FALSE;
             }
             if (xlFileClose(&pFile) == 0) {
-                return 0;
+                return FALSE;
             }
             simulatorUnpackTexPalette(gpImageBack);
             DCStoreRange(gpImageBack, nSize);
-            gbProgress = 0;
-            gbDisplayedError = 1;
+            gbProgress = FALSE;
+            gbDisplayedError = TRUE;
         }
         if (gnFlagZelda & 2) {
             if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
+                return FALSE;
             }
             if (!romLoadRange(pROM, 0xAFDAA0, 0x0168515F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
+                return FALSE;
             }
         } else {
             if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
+                return FALSE;
             }
             if (!romLoadRange(pROM, 0xAFDB00, 0x01684BCF, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
+                return FALSE;
             }
         }
     } else if (romTestCode(pROM, "NZSJ") || romTestCode(pROM, "NZSE")) {
         if (!romLoadRange(pROM, 0, 0xEFAB5F, &blockCount, 1, NULL)) {
-            return 0;
+            return FALSE;
         }
         if (!romLoadRange(pROM, 0x0167CE40, 0x016B4E8F, &blockCount, 1, NULL)) {
-            return 0;
+            return FALSE;
         }
         if (!romLoadRange(pROM, 0x01F82960, pROM->nSize - 1, &blockCount, 1, NULL)) {
-            return 0;
+            return FALSE;
         }
     }
 
     gDVDResetToggle = 0;
-    return 1;
+    return TRUE;
 }
 
-s32 __romLoadUpdate_Complete(void) {
+BOOL __romLoadUpdate_Complete(void) {
     Rom* pROM = gpSystem->apObject[SOT_ROM];
 
-    pROM->load.bWait = 0;
-    return 1;
+    pROM->load.bWait = FALSE;
+    return TRUE;
 }
 
-static s32 romLoadUpdate(Rom* pROM) {
+static BOOL romLoadUpdate(Rom* pROM) {
     s32 iCache;
     RomBlock* pBlock;
     u32 iBlock0;
@@ -526,7 +526,7 @@ static s32 romLoadUpdate(Rom* pROM) {
 
     pCPU = ((System*)pROM->pHost)->apObject[SOT_CPU];
     if ((pROM->load.nOffset0 == 0 && pROM->load.nOffset1 == 0) || pROM->load.bWait) {
-        return 1;
+        return TRUE;
     }
 
     iBlock0 = pROM->load.nOffset0 >> 0xD;
@@ -534,26 +534,26 @@ static s32 romLoadUpdate(Rom* pROM) {
 
     while (iBlock0 <= iBlock1) {
         if (pCPU->nRetrace != pCPU->nRetraceUsed) {
-            return 1;
+            return TRUE;
         }
 
         if (!simulatorTestReset(0, 0, 1, 0)) {
-            return 0;
+            return FALSE;
         }
 
         pBlock = &pROM->aBlock[iBlock0];
         pBlock->nTickUsed = ++pROM->nTick;
         if (pBlock->nSize == 0) {
             if (!romMakeFreeCache(pROM, &iCache, 0)) {
-                return 0;
+                return FALSE;
             }
 
-            pROM->load.bWait = 1;
+            pROM->load.bWait = TRUE;
             if (!romLoadBlock(pROM, iBlock0, iCache, &__romLoadUpdate_Complete)) {
-                return 0;
+                return FALSE;
             }
 
-            return 1;
+            return TRUE;
         }
 
         pROM->load.nOffset0 = ++iBlock0 * 0x2000;
@@ -561,17 +561,17 @@ static s32 romLoadUpdate(Rom* pROM) {
 
     pROM->load.nOffset1 = 0U;
     pROM->load.nOffset0 = 0U;
-    return 1;
+    return TRUE;
 }
 
-static s32 __romCopyUpdate_Complete(void) {
+static BOOL __romCopyUpdate_Complete(void) {
     Rom* pROM = gpSystem->apObject[SOT_ROM];
 
-    pROM->copy.bWait = 0;
-    return 1;
+    pROM->copy.bWait = FALSE;
+    return TRUE;
 }
 
-static s32 romCopyUpdate(Rom* pROM) {
+static BOOL romCopyUpdate(Rom* pROM) {
     RomBlock* pBlock;
     s32 pad;
     s32 iCache;
@@ -598,16 +598,16 @@ static s32 romCopyUpdate(Rom* pROM) {
         var_r0 = 1;
     }
     if (var_r0 || pROM->copy.nSize == 0 || pROM->copy.bWait) {
-        return 1;
+        return TRUE;
     }
 
     while (pROM->copy.nSize != 0) {
         if (pROM->copy.pCallback != NULL && pCPU->nRetrace != pCPU->nRetraceUsed) {
-            return 1;
+            return TRUE;
         }
 
         if (!simulatorTestReset(0, 0, 1, 0)) {
-            return 0;
+            return FALSE;
         }
 
         iBlock = pROM->copy.nOffset / 0x2000;
@@ -617,25 +617,25 @@ static s32 romCopyUpdate(Rom* pROM) {
 
         if (pBlock->nSize != 0) {
             if (pBlock->iCache < 0 && !romSetBlockCache(pROM, iBlock, 0)) {
-                return 0;
+                return FALSE;
             }
         } else {
             if (!romMakeFreeCache(pROM, &iCache, 0)) {
-                return 0;
+                return FALSE;
             }
 
             if (pROM->copy.pCallback == NULL) {
                 if (!romLoadBlock(pROM, iBlock, iCache, NULL)) {
-                    return 0;
+                    return FALSE;
                 }
             } else {
                 pBlock->nTickUsed = nTickLast;
                 pROM->nTick--;
-                pROM->copy.bWait = 1;
+                pROM->copy.bWait = TRUE;
                 if (!romLoadBlock(pROM, iBlock, iCache, &__romCopyUpdate_Complete)) {
-                    return 0;
+                    return FALSE;
                 } else {
-                    return 1;
+                    return TRUE;
                 }
             }
         }
@@ -647,7 +647,7 @@ static s32 romCopyUpdate(Rom* pROM) {
 
         anData = &pROM->pCacheRAM[pBlock->iCache * 0x2000];
         if (!xlHeapCopy(pROM->copy.pTarget, anData + nOffsetBlock, nSize)) {
-            return 0;
+            return FALSE;
         }
 
         pROM->copy.pTarget = (u8*)pROM->copy.pTarget + nSize;
@@ -656,12 +656,12 @@ static s32 romCopyUpdate(Rom* pROM) {
     }
 
     if (pROM->copy.pCallback != NULL && !pROM->copy.pCallback()) {
-        return 0;
+        return FALSE;
     }
-    return 1;
+    return TRUE;
 }
 
-inline s32 romLoadFullOrPartLoop(Rom* pROM) {
+inline BOOL romLoadFullOrPartLoop(Rom* pROM) {
     s32 i;
     s32 iCache;
     u32 temp_r27;
@@ -674,18 +674,18 @@ inline s32 romLoadFullOrPartLoop(Rom* pROM) {
         pROM->aBlock[i].nTickUsed = temp_r27 - i;
 
         if (!romMakeFreeCache(pROM, &iCache, RCT_RAM)) {
-            return 0;
+            return FALSE;
         }
 
         if (!romLoadBlock(pROM, i, iCache, NULL)) {
-            return 0;
+            return FALSE;
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-static s32 romLoadFullOrPart(Rom* pROM) {
+static BOOL romLoadFullOrPart(Rom* pROM) {
     tXL_FILE* pFile;
     s32 pad;
 
@@ -710,21 +710,21 @@ static s32 romLoadFullOrPart(Rom* pROM) {
         }
 
         if ((s32)pROM->nSize < (pROM->nSizeCacheRAM + 0xFFA000) && !romLoadFullOrPartLoop(pROM)) {
-            return 0;
+            return FALSE;
         }
     } else {
         s32 i;
         u32 temp_r28;
 
         if (!xlFileOpen(&pFile, XLFT_BINARY, pROM->acNameFile)) {
-            return 0;
+            return FALSE;
         }
 
         pROM->pBuffer = (void*)pROM->pCacheRAM;
 
         if ((temp_r28 = (u32)pROM->nSize >> 5) == 0) {
             if (!xlFileSetPosition(pFile, pROM->offsetToRom)) {
-                return 0;
+                return FALSE;
             }
 
             xlFileGet(pFile, pROM->pBuffer, pROM->nSize);
@@ -732,7 +732,7 @@ static s32 romLoadFullOrPart(Rom* pROM) {
         } else {
             for (i = 0; i < (s32)pROM->nSize;) {
                 if (!simulatorTestReset(0, 0, 1, 0)) {
-                    return 0;
+                    return FALSE;
                 }
 
                 xlFileGet(pFile, (void*)((u32)pROM->pBuffer + i), (s32)temp_r28);
@@ -742,7 +742,7 @@ static s32 romLoadFullOrPart(Rom* pROM) {
         }
 
         if (!xlFileClose(&pFile)) {
-            return 0;
+            return FALSE;
         }
 
         pROM->eModeLoad = RLM_FULL;
@@ -758,10 +758,10 @@ static s32 romLoadFullOrPart(Rom* pROM) {
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-s32 romGetPC(Rom* pROM, u64* pnPC) {
+BOOL romGetPC(Rom* pROM, u64* pnPC) {
     s32 nOffset;
     u32 nData;
     u32 iData;
@@ -789,17 +789,17 @@ s32 romGetPC(Rom* pROM, u64* pnPC) {
                 nOffset = 0x200000;
                 break;
             default:
-                return 0;
+                return FALSE;
         }
 
         *pnPC = anData[2] - nOffset;
-        return 1;
+        return TRUE;
     } else {
-        return 0;
+        return FALSE;
     }
 }
 
-s32 romGetCode(Rom* pROM, char* acCode) {
+BOOL romGetCode(Rom* pROM, char* acCode) {
     s32 iCode;
 
     for (iCode = 0; iCode < 4; iCode++) {
@@ -807,10 +807,10 @@ s32 romGetCode(Rom* pROM, char* acCode) {
     }
     acCode[4] = '\0';
 
-    return 1;
+    return TRUE;
 }
 
-s32 romTestCode(Rom* pROM, char* acCode) {
+BOOL romTestCode(Rom* pROM, char* acCode) {
     s32 iCode;
     char acCodeCurrent[5];
 
@@ -818,112 +818,112 @@ s32 romTestCode(Rom* pROM, char* acCode) {
 
     for (iCode = 0; iCode < 4; iCode++) {
         if (acCode[iCode] != acCodeCurrent[iCode]) {
-            return 0;
+            return FALSE;
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-static s32 romPut8(Rom* pROM, u32 nAddress, s8* pData) { return 1; }
-static s32 romPut16(Rom* pROM, u32 nAddress, s16* pData) { return 1; }
-static s32 romPut32(Rom* pROM, u32 nAddress, s32* pData) { return 1; }
-static s32 romPut64(Rom* pROM, u32 nAddress, s64* pData) { return 1; }
+static BOOL romPut8(Rom* pROM, u32 nAddress, s8* pData) { return TRUE; }
+static BOOL romPut16(Rom* pROM, u32 nAddress, s16* pData) { return TRUE; }
+static BOOL romPut32(Rom* pROM, u32 nAddress, s32* pData) { return TRUE; }
+static BOOL romPut64(Rom* pROM, u32 nAddress, s64* pData) { return TRUE; }
 
-static s32 romGet8(Rom* pROM, u32 nAddress, s8* pData) {
+static BOOL romGet8(Rom* pROM, u32 nAddress, s8* pData) {
     u8 nData;
 
     nAddress = nAddress & 0x07ffffff;
     if (nAddress < pROM->nSize && romCopy(pROM, &nData, nAddress, 1, 0)) {
         *pData = nData;
-        return 1;
+        return TRUE;
     } else {
         *pData = 0;
-        return 1;
+        return TRUE;
     }
 }
 
-static s32 romGet16(Rom* pROM, u32 nAddress, s16* pData) {
+static BOOL romGet16(Rom* pROM, u32 nAddress, s16* pData) {
     u16 nData;
 
     nAddress = nAddress & 0x07ffffff;
     if (nAddress < pROM->nSize && romCopy(pROM, &nData, nAddress, 2, 0)) {
         *pData = nData;
-        return 1;
+        return TRUE;
     } else {
         *pData = 0;
-        return 1;
+        return TRUE;
     }
 }
 
-static s32 romGet32(Rom* pROM, u32 nAddress, s32* pData) {
+static BOOL romGet32(Rom* pROM, u32 nAddress, s32* pData) {
     u32 nData;
 
     nAddress = nAddress & 0x07ffffff;
     if (nAddress < pROM->nSize && romCopy(pROM, &nData, nAddress, 4, 0)) {
         *pData = nData;
-        return 1;
+        return TRUE;
     } else {
         *pData = 0;
-        return 1;
+        return TRUE;
     }
 }
 
-static s32 romGet64(Rom* pROM, u32 nAddress, s64* pData) {
+static BOOL romGet64(Rom* pROM, u32 nAddress, s64* pData) {
     u64 nData;
 
     nAddress = nAddress & 0x07ffffff;
     if (nAddress < pROM->nSize && romCopy(pROM, &nData, nAddress, 8, 0)) {
         *pData = nData;
-        return 1;
+        return TRUE;
     } else {
         *pData = 0;
-        return 1;
+        return TRUE;
     }
 }
 
-static s32 romPutDebug8(Rom* pROM, u32 nAddress, s8* pData) { return 1; }
-static s32 romPutDebug16(Rom* pROM, u32 nAddress, s16* pData) { return 1; }
-static s32 romPutDebug32(Rom* pROM, u32 nAddress, s32* pData) { return 1; }
-static s32 romPutDebug64(Rom* pROM, u32 nAddress, s64* pData) { return 1; }
+static BOOL romPutDebug8(Rom* pROM, u32 nAddress, s8* pData) { return TRUE; }
+static BOOL romPutDebug16(Rom* pROM, u32 nAddress, s16* pData) { return TRUE; }
+static BOOL romPutDebug32(Rom* pROM, u32 nAddress, s32* pData) { return TRUE; }
+static BOOL romPutDebug64(Rom* pROM, u32 nAddress, s64* pData) { return TRUE; }
 
-static s32 romGetDebug8(Rom* pROM, u32 nAddress, s8* pData) {
+static BOOL romGetDebug8(Rom* pROM, u32 nAddress, s8* pData) {
     *pData = 0;
-    return 1;
+    return TRUE;
 }
 
-static s32 romGetDebug16(Rom* pROM, u32 nAddress, s16* pData) {
+static BOOL romGetDebug16(Rom* pROM, u32 nAddress, s16* pData) {
     *pData = 0;
-    return 1;
+    return TRUE;
 }
 
-static s32 romGetDebug32(Rom* pROM, u32 nAddress, s32* pData) {
+static BOOL romGetDebug32(Rom* pROM, u32 nAddress, s32* pData) {
     *pData = 0;
-    return 1;
+    return TRUE;
 }
 
-static s32 romGetDebug64(Rom* pROM, u32 nAddress, s64* pData) {
+static BOOL romGetDebug64(Rom* pROM, u32 nAddress, s64* pData) {
     *pData = 0;
-    return 1;
+    return TRUE;
 }
 
-inline s32 romCopyLoad(Rom* pROM) {
+inline BOOL romCopyLoad(Rom* pROM) {
     if (!romLoadFullOrPart(pROM)) {
-        return 0;
+        return FALSE;
     }
 
     if (!romCacheGame(pROM)) {
-        return 0;
+        return FALSE;
     }
 
-    pROM->bLoad = 0;
-    return 1;
+    pROM->bLoad = FALSE;
+    return TRUE;
 }
 
-inline s32 romCopyLoop(Rom* pROM, u8* pTarget, u32 nOffset, u32 nSize, UnknownCallbackFunc* pCallback) {
+inline BOOL romCopyLoop(Rom* pROM, u8* pTarget, u32 nOffset, u32 nSize, UnknownCallbackFunc* pCallback) {
     s32 i;
 
-    pROM->copy.bWait = 0;
+    pROM->copy.bWait = FALSE;
     pROM->copy.nSize = nSize;
     pROM->copy.pTarget = pTarget;
     pROM->copy.nOffset = nOffset;
@@ -933,78 +933,78 @@ inline s32 romCopyLoop(Rom* pROM, u8* pTarget, u32 nOffset, u32 nSize, UnknownCa
         if ((pROM->anOffsetBlock[i] <= nOffset) && (nOffset <= pROM->anOffsetBlock[i + 1])) {
             pROM->load.nOffset0 = pROM->anOffsetBlock[i];
             pROM->load.nOffset1 = pROM->anOffsetBlock[i + 1];
-            return 1;
+            return TRUE;
         }
     }
 
-    return 0;
+    return FALSE;
 }
 
-s32 romCopy(Rom* pROM, void* pTarget, s32 nOffset, s32 nSize, UnknownCallbackFunc* pCallback) {
+BOOL romCopy(Rom* pROM, void* pTarget, s32 nOffset, s32 nSize, UnknownCallbackFunc* pCallback) {
     tXL_FILE* pFile;
 
     nOffset &= 0x07FFFFFF;
 
     if (!pROM->nSizeCacheRAM) {
         if (!xlFileOpen(&pFile, XLFT_BINARY, pROM->acNameFile)) {
-            return 0;
+            return FALSE;
         }
 
         if (!xlFileSetPosition(pFile, nOffset + pROM->offsetToRom)) {
-            return 0;
+            return FALSE;
         }
 
         if (!xlFileGet(pFile, pTarget, (s32)nSize)) {
-            return 0;
+            return FALSE;
         }
 
         if (!xlFileClose(&pFile)) {
-            return 0;
+            return FALSE;
         }
 
         if ((pCallback != NULL) && !pCallback()) {
-            return 0;
+            return FALSE;
         }
 
-        return 1;
+        return TRUE;
     }
 
     if (pROM->bLoad && !romCopyLoad(pROM)) {
-        return 0;
+        return FALSE;
     }
 
     if (((nOffset + nSize) > pROM->nSize) && ((nSize = pROM->nSize - nOffset) < 0)) {
-        return 1;
+        return TRUE;
     }
 
     if (pROM->eModeLoad == RLM_PART) {
         if (romCopyLoop(pROM, pTarget, nOffset, nSize, pCallback) && !romLoadUpdate(pROM)) {
-            return 0;
+            return FALSE;
         }
 
         if (!romCopyUpdate(pROM)) {
-            return 0;
+            return FALSE;
         }
 
-        return 1;
+        return TRUE;
     }
 
     if (pROM->eModeLoad == RLM_FULL) {
         if (!xlHeapCopy(pTarget, (void*)((u32)pROM->pBuffer + nOffset), nSize)) {
-            return 0;
+            return FALSE;
         }
 
         if ((pCallback != NULL) && !pCallback()) {
-            return 0;
+            return FALSE;
         }
 
-        return 1;
+        return TRUE;
     }
 
-    return 0;
+    return FALSE;
 }
 
-s32 romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
+BOOL romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
     void* pSource;
     RomBlock* pBlock;
     s32 nOffsetARAM;
@@ -1019,25 +1019,25 @@ s32 romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
     u8 anBuffer[608];
 
     if (pROM->nSizeCacheRAM == 0) {
-        return 0;
+        return FALSE;
     }
 
     if (pROM->bLoad && !romCopyLoad(pROM)) {
-        return 0;
+        return FALSE;
     }
 
     nOffsetROM = nOffsetROM & 0x07FFFFFF;
     pBuffer = (u8*)(((s32)anBuffer + 0x1F) & 0xFFFFFFE0);
 
     if (nOffsetROM + nSize > pROM->nSize && (nSize = pROM->nSize - nOffsetROM) < 0) {
-        return 1;
+        return TRUE;
     }
 
     if (pROM->eModeLoad == RLM_PART) {
         while (nSize != 0U) {
             pBlock = &pROM->aBlock[nOffsetROM / 0x2000];
             if (pBlock->nSize == 0) {
-                return 0;
+                return FALSE;
             }
 
             nOffsetBlock = nOffsetROM % 0x2000;
@@ -1048,7 +1048,7 @@ s32 romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
             if (pBlock->iCache >= 0) {
                 pSource = &pROM->pCacheRAM[(pBlock->iCache * 0x2000)] + nOffsetBlock;
                 if (!xlHeapCopy(pTarget, pSource, nSizeCopy)) {
-                    return 0;
+                    return FALSE;
                 }
             } else {
                 nSizeCopyARAM = nSizeCopy;
@@ -1070,7 +1070,7 @@ s32 romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
                     while (ARGetDMAStatus()) {}
 
                     if (!xlHeapCopy((u8*)pTarget + nOffsetTarget, pBuffer + nOffset, nSizeDMA)) {
-                        return 0;
+                        return FALSE;
                     }
 
                     nOffsetARAM += nSizeDMA;
@@ -1083,25 +1083,25 @@ s32 romCopyImmediate(Rom* pROM, void* pTarget, s32 nOffsetROM, s32 nSize) {
             nOffsetROM += nSizeCopy;
             nSize -= nSizeCopy;
         }
-        return 1;
+        return TRUE;
     } else if (pROM->eModeLoad == RLM_FULL) {
         if (!xlHeapCopy(pTarget, (u8*)pROM->pBuffer + nOffsetROM, nSize)) {
-            return 0;
+            return FALSE;
         }
-        return 1;
+        return TRUE;
     }
 
-    return 0;
+    return FALSE;
 }
 
-s32 romUpdate(Rom* pROM) {
+BOOL romUpdate(Rom* pROM) {
     s32 nStatus;
 
-    if ((pROM->copy.bWait != 0) || (pROM->load.bWait != 0)) {
-        if ((pROM->load.bDone != 0) && (pROM->load.nResult == pROM->load.nSizeRead)) {
-            pROM->load.bDone = 0;
+    if (pROM->copy.bWait || pROM->load.bWait) {
+        if (pROM->load.bDone && pROM->load.nResult == pROM->load.nSizeRead) {
+            pROM->load.bDone = FALSE;
             if (!__romLoadBlock_Complete(pROM)) {
-                return 0;
+                return FALSE;
             }
         }
 
@@ -1109,31 +1109,31 @@ s32 romUpdate(Rom* pROM) {
         if (nStatus != 1) {
             if (!simulatorDVDShowError(nStatus, pROM->load.anData, pROM->load.nSizeRead,
                                        pROM->offsetToRom + pROM->load.nOffset)) {
-                return 0;
+                return FALSE;
             }
 
             if ((nStatus == 0xB) || (nStatus == -1)) {
                 DVDCancel(&pROM->fileInfo.cb);
                 if (!simulatorDVDRead(&pROM->fileInfo, pROM->load.anData, pROM->load.nSizeRead,
                                       pROM->offsetToRom + pROM->load.nOffset, &__romLoadBlock_CompleteGCN)) {
-                    return 0;
+                    return FALSE;
                 }
             }
         }
     }
 
     if (!romLoadUpdate(pROM)) {
-        return 0;
+        return FALSE;
     }
 
     if (!romCopyUpdate(pROM)) {
-        return 0;
+        return FALSE;
     }
 
-    return 1;
+    return TRUE;
 }
 
-s32 romSetCacheSize(Rom* pROM, s32 nSize) {
+BOOL romSetCacheSize(Rom* pROM, s32 nSize) {
     s32 nSizeCacheRAM;
 
     if (nSize < 0x100000) {
@@ -1148,12 +1148,12 @@ s32 romSetCacheSize(Rom* pROM, s32 nSize) {
     pROM->nCountBlockRAM = nSizeCacheRAM / 0x2000;
 
     if (!xlHeapTake(&pROM->pBuffer, nSizeCacheRAM | 0x30000000)) {
-        return 0;
+        return FALSE;
     }
 
     pROM->pCacheRAM = (u8*)pROM->pBuffer;
 
-    return 1;
+    return TRUE;
 }
 
 inline void romOpen(Rom* pROM, char* szNameFile) {
@@ -1165,16 +1165,16 @@ inline void romOpen(Rom* pROM, char* szNameFile) {
     }
 
     if (var_r30 != 0) {
-        bFlip = 1;
+        bFlip = TRUE;
     } else {
-        bFlip = 0;
+        bFlip = FALSE;
     }
 
     pROM->bFlip = bFlip;
     simulatorDVDOpen(szNameFile, &pROM->fileInfo);
 }
 
-s32 romSetImage(Rom* pROM, char* szNameFile) {
+BOOL romSetImage(Rom* pROM, char* szNameFile) {
     tXL_FILE* pFile;
     s32 iName;
     s32 nSize;
@@ -1187,32 +1187,32 @@ s32 romSetImage(Rom* pROM, char* szNameFile) {
     if (xlFileGetSize(&nSize, pROM->acNameFile)) {
         pROM->nSize = (u32)(nSize - pROM->offsetToRom);
     } else {
-        return 0;
+        return FALSE;
     }
 
     if (!xlFileOpen(&pFile, XLFT_BINARY, szNameFile)) {
-        return 0;
+        return FALSE;
     }
 
     if (!xlFileSetPosition(pFile, pROM->offsetToRom)) {
-        return 0;
+        return FALSE;
     }
 
     if (!xlFileGet(pFile, pROM->acHeader, sizeof(pROM->acHeader))) {
-        return 0;
+        return FALSE;
     }
 
     if (!xlFileClose(&pFile)) {
-        return 0;
+        return FALSE;
     }
 
     romOpen(pROM, szNameFile);
-    return 1;
+    return TRUE;
 }
 
-s32 romGetImage(Rom* pROM, char* acNameFile) {
+BOOL romGetImage(Rom* pROM, char* acNameFile) {
     if (pROM->acNameFile[0] == '\0') {
-        return 0;
+        return FALSE;
     }
 
     if (acNameFile != NULL) {
@@ -1223,16 +1223,16 @@ s32 romGetImage(Rom* pROM, char* acNameFile) {
         }
     }
 
-    return 1;
+    return TRUE;
 }
 
-s32 romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
+BOOL romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
     switch (nEvent) {
         case 2:
             pROM->nSize = 0;
             pROM->nTick = 0;
-            pROM->bLoad = 1;
-            pROM->bFlip = 0;
+            pROM->bLoad = TRUE;
+            pROM->bFlip = FALSE;
             pROM->pHost = pArgument;
             pROM->acNameFile[0] = '\0';
             pROM->eModeLoad = RLM_NONE;
@@ -1241,18 +1241,18 @@ s32 romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
             pROM->anOffsetBlock = NULL;
             pROM->nCountOffsetBlocks = 0;
             pROM->copy.nSize = 0;
-            pROM->copy.bWait = 0;
-            pROM->load.bWait = 0;
+            pROM->copy.bWait = FALSE;
+            pROM->load.bWait = FALSE;
             pROM->load.nOffset1 = 0;
             pROM->load.nOffset0 = 0;
-            pROM->load.bDone = 0;
+            pROM->load.bDone = FALSE;
             pROM->nSizeCacheRAM = 0;
             pROM->nCountBlockRAM = 0;
             pROM->pCacheRAM = NULL;
             break;
         case 3:
             if ((pROM->pBuffer != NULL) && (pROM->pBuffer != pROM->pCacheRAM) && (!xlHeapFree(&pROM->pBuffer))) {
-                return 0;
+                return FALSE;
             }
             break;
         case 0x1002:
@@ -1260,23 +1260,23 @@ s32 romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
                 case 0:
                     if (!cpuSetDevicePut(((System*)pROM->pHost)->apObject[SOT_CPU], pArgument, (Put8Func)romPut8,
                                          (Put16Func)romPut16, (Put32Func)romPut32, (Put64Func)romPut64)) {
-                        return 0;
+                        return FALSE;
                     }
                     if (!cpuSetDeviceGet(((System*)pROM->pHost)->apObject[SOT_CPU], pArgument, (Get8Func)romGet8,
                                          (Get16Func)romGet16, (Get32Func)romGet32, (Get64Func)romGet64)) {
-                        return 0;
+                        return FALSE;
                     }
                     break;
                 case 1:
                     if (!cpuSetDevicePut(((System*)pROM->pHost)->apObject[SOT_CPU], pArgument, (Put8Func)romPutDebug8,
                                          (Put16Func)romPutDebug16, (Put32Func)romPutDebug32,
                                          (Put64Func)romPutDebug64)) {
-                        return 0;
+                        return FALSE;
                     }
                     if (!cpuSetDeviceGet(((System*)pROM->pHost)->apObject[SOT_CPU], pArgument, (Get8Func)romGetDebug8,
                                          (Get16Func)romGetDebug16, (Get32Func)romGetDebug32,
                                          (Get64Func)romGetDebug64)) {
-                        return 0;
+                        return FALSE;
                     }
                     break;
             }
@@ -1286,8 +1286,8 @@ s32 romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
         case 0x1003:
             break;
         default:
-            return 0;
+            return FALSE;
     }
 
-    return 1;
+    return TRUE;
 }

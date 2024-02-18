@@ -55,14 +55,14 @@ typedef struct RomCopy {
     /* 0x00 */ s32 nSize;
     /* 0x04 */ s32 nOffsetRAM;
     /* 0x08 */ s32 nOffsetROM;
-    /* 0x0C */ s32 (*pCallback)();
+    /* 0x0C */ BOOL (*pCallback)();
 } RomCopy; // size = 0x10
 
 // __anon_0x37240
 typedef struct System {
     /* 0x00 */ void* pFrame;
     /* 0x04 */ void* pSound;
-    /* 0x08 */ s32 bException;
+    /* 0x08 */ BOOL bException;
     /* 0x0C */ SystemMode eMode;
     /* 0x10 */ RomCopy romCopy;
     /* 0x20 */ SystemRomType eTypeROM;
@@ -70,7 +70,7 @@ typedef struct System {
     /* 0x68 */ u64 nAddressBreak;
     /* 0x70 */ SystemObjectType storageDevice;
     /* 0x74 */ u8 anException[16];
-    /* 0x84 */ s32 bJapaneseVersion;
+    /* 0x84 */ BOOL bJapaneseVersion;
 } System; // size = 0x88
 
 // __anon_0x3459E

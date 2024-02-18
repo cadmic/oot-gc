@@ -9,6 +9,6 @@ typedef struct Serial {
     /* 0x04 */ s32 nAddress;
 } Serial; // size = 0x08
 
-s32 serialEvent(Serial* pSerial, s32 nEvent, void* pArgument);
+BOOL serialEvent(Serial* pSerial, s32 nEvent, void* pArgument);
 
 #endif

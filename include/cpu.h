@@ -4,15 +4,15 @@
 #include <dolphin/OSAlarm.h>
 #include <dolphin/types.h>
 
-typedef s32 (*Put8Func)(void* pObject, u32 nAddress, s8* pData);
-typedef s32 (*Put16Func)(void* pObject, u32 nAddress, s16* pData);
-typedef s32 (*Put32Func)(void* pObject, u32 nAddress, s32* pData);
-typedef s32 (*Put64Func)(void* pObject, u32 nAddress, s64* pData);
+typedef BOOL (*Put8Func)(void* pObject, u32 nAddress, s8* pData);
+typedef BOOL (*Put16Func)(void* pObject, u32 nAddress, s16* pData);
+typedef BOOL (*Put32Func)(void* pObject, u32 nAddress, s32* pData);
+typedef BOOL (*Put64Func)(void* pObject, u32 nAddress, s64* pData);
 
-typedef s32 (*Get8Func)(void* pObject, u32 nAddress, s8* pData);
-typedef s32 (*Get16Func)(void* pObject, u32 nAddress, s16* pData);
-typedef s32 (*Get32Func)(void* pObject, u32 nAddress, s32* pData);
-typedef s32 (*Get64Func)(void* pObject, u32 nAddress, s64* pData);
+typedef BOOL (*Get8Func)(void* pObject, u32 nAddress, s8* pData);
+typedef BOOL (*Get16Func)(void* pObject, u32 nAddress, s16* pData);
+typedef BOOL (*Get32Func)(void* pObject, u32 nAddress, s32* pData);
+typedef BOOL (*Get64Func)(void* pObject, u32 nAddress, s64* pData);
 
 // __anon_0x3DE78
 typedef struct CpuJump {
@@ -209,12 +209,12 @@ struct Cpu {
     /* 0x00240 */ u64 aTLB[48][5];
     /* 0x009C0 */ s32 anFCR[32];
     /* 0x00A40 */ s64 anCP0[32];
-    /* 0x00B40 */ s32 (*pfStep)(Cpu*);
-    /* 0x00B44 */ s32 (*pfJump)(Cpu*);
-    /* 0x00B48 */ s32 (*pfCall)(Cpu*);
-    /* 0x00B4C */ s32 (*pfIdle)(Cpu*);
-    /* 0x00B50 */ s32 (*pfRam)(Cpu*);
-    /* 0x00B54 */ s32 (*pfRamF)(Cpu*);
+    /* 0x00B40 */ BOOL (*pfStep)(Cpu*);
+    /* 0x00B44 */ BOOL (*pfJump)(Cpu*);
+    /* 0x00B48 */ BOOL (*pfCall)(Cpu*);
+    /* 0x00B4C */ BOOL (*pfIdle)(Cpu*);
+    /* 0x00B50 */ BOOL (*pfRam)(Cpu*);
+    /* 0x00B54 */ BOOL (*pfRamF)(Cpu*);
     /* 0x00B58 */ u32 nTickLast;
     /* 0x00B5C */ u32 nRetrace;
     /* 0x00B60 */ u32 nRetraceUsed;
@@ -236,10 +236,10 @@ struct Cpu {
     /* 0x12064 */ CpuOptimize nOptimize;
 }; // size = 0x12090
 
-s32 cpuSetDevicePut(Cpu* pCPU, CpuDevice* pDevice, Put8Func pfPut8, Put16Func pfPut16, Put32Func pfPut32,
-                    Put64Func pfPut64);
+BOOL cpuSetDevicePut(Cpu* pCPU, CpuDevice* pDevice, Put8Func pfPut8, Put16Func pfPut16, Put32Func pfPut32,
+                     Put64Func pfPut64);
 
-s32 cpuSetDeviceGet(Cpu* pCPU, CpuDevice* pDevice, Get8Func pfGet8, Get16Func pfGet16, Get32Func pfGet32,
-                    Get64Func pfGet64);
+BOOL cpuSetDeviceGet(Cpu* pCPU, CpuDevice* pDevice, Get8Func pfGet8, Get16Func pfGet16, Get32Func pfGet32,
+                     Get64Func pfGet64);
 
 #endif

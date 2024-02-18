@@ -21,15 +21,15 @@ typedef struct tXL_FILE {
     /* 0x1C */ DVDFileInfo info;
 } tXL_FILE; // size = 0x58
 
-s32 xlFileEvent(tXL_FILE* pFile, s32 nEvent);
-s32 xlFileSetPosition(tXL_FILE* pFile, s32 nOffset);
-s32 xlFileGet(tXL_FILE* pFile, void* pTarget, s32 nSizeBytes);
-s32 xlFileClose(tXL_FILE** ppFile);
-s32 xlFileOpen(tXL_FILE** ppFile, __anon_0x2757 eType, char* szFileName);
-s32 xlFileGetSize(s32* pnSize, char* szFileName);
-s32 xlFileSetRead(s32 (*pfRead)(DVDFileInfo* /* unknown0 */, void* /* unknown1 */, s32 /* unknown2 */,
+BOOL xlFileEvent(tXL_FILE* pFile, s32 nEvent);
+BOOL xlFileSetPosition(tXL_FILE* pFile, s32 nOffset);
+BOOL xlFileGet(tXL_FILE* pFile, void* pTarget, s32 nSizeBytes);
+BOOL xlFileClose(tXL_FILE** ppFile);
+BOOL xlFileOpen(tXL_FILE** ppFile, __anon_0x2757 eType, char* szFileName);
+BOOL xlFileGetSize(s32* pnSize, char* szFileName);
+BOOL xlFileSetRead(BOOL (*pfRead)(DVDFileInfo* /* unknown0 */, void* /* unknown1 */, s32 /* unknown2 */,
                                 s32 /* unknown3 */,
                                 void (* /* unknown4 */)(long /* unknown0 */, DVDFileInfo* /* unknown1 */)));
-s32 xlFileSetOpen(s32 (*pfOpen)(char* /* unknown0 */, DVDFileInfo* /* unknown1 */));
+BOOL xlFileSetOpen(BOOL (*pfOpen)(char* /* unknown0 */, DVDFileInfo* /* unknown1 */));
 
 #endif
