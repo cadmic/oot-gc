@@ -42,13 +42,13 @@ static s32 sRemapI[] = {
 };
 
 char* gaszNameColor[] = {
-    "CPREV", "APREV", "C0", "A0", "C1", "CA", "C2", "A2",
+    "CPREV", "APREV", "C0", "A0", "C1", "A1", "C2", "A2",
     "TEXC", "TEXA", "RASC", "RASA", "ONE", "HALF", "KONST", "ZERO",
     D_800EA8D8, D_800EA8EC, D_800EA900, D_800EA914,
 };
 
 char* gaszNameAlpha[] = {
-    "APREV", "A0", "CA", "A2", "TEXA", "RASA", "KONST", "ZERO",
+    "APREV", "A0", "A1", "A2", "TEXA", "RASA", "KONST", "ZERO",
     "KONST",
 };
 
@@ -72,8 +72,11 @@ char* gaszNameColorType[] = {
     "FOG", "FILL", "BLEND", D_800EAA0C, D_800EAA18,
 };
 
-s32 sCommandCodes[] = {
+s32 sCommandCodes_1679[] = {
     0xF5500000, 0x07080200, 0xE6000000, 0x00000000, 0xF3000000, 0x073BF01A, 0xE7000000, 0x00000000,
+};
+
+s32 sCommandCodes_1702[] = {
     0xE7000000, 0x00000000, 0xEF000CF0, 0x0F0A4004, 0xFB000000, 0xFFFFFFFF, 0xFC12FE25, 0xFFFFFBFD,
     0xFF10013F, 0x804096C0,
 };
@@ -285,15 +288,27 @@ void* jtbl_800EB22C[] = {
 char D_800EB2AC[] = "LoadTexture: Unknown FILTER mode (%d)\n";
 char D_800EB2D4[] = "MakeTexture: 'aTexture' is exhausted!\0\0";
 
-static u32 sConstantBufAddr[6];
-u8 sTempZBuf[153600];  // .skip
+static u32 sConstantBufAddr[8];
+static u16 sTempZBuf[4800][4][4];
 u8 sFrameObj1[32];  // .skip
 u8 sFrameObj2[32];  // .skip
-u8 line[2560];  // .skip
-u8 sFrameObj[32];  // .skip
-u8 frameObj[32];  // .skip
-u8 tempLine[512];  // .skip
-u8 cAlpha = 0x0F;
+// size = 0x20, address = 0x8012DE00
+static struct _GXTexObj sFrameObj_1564;
+// size = 0x20, address = 0x8012DE20
+static struct _GXTexObj sFrameObj_1565;
+// size = 0x20, address = 0x8012DE40
+static struct _GXTexObj sFrameObj_1568;
+// size = 0x1400, address = 0x8012DE60
+static u32 line_1582[80][4][4];
+static u16 line_1606[80][4][4];
+static u16 line_1630[80][4][4];
+static struct _GXTexObj sFrameObj_1647;
+static struct _GXTexObj sFrameObj_1660;
+static struct _GXTexObj frameObj_1663;
+static struct _GXTexObj frameObj_1673;
+static u16 tempLine[16][4][4];
+
+static u8 cAlpha = 0x0F;
 static char D_80134E58[] = "frame.c";
 static s32 gbFrameValid;
 static s32 gbFrameBegin;
@@ -311,10 +326,10 @@ static u32 sNumAddr;  // .skip
 static u32 gHackCreditsColor;  // .skip
 s32 gNoSwapBuffer;  // .skip
 u8 gnCountMapHack[4];  // .skip
-u8 nCounter[4];  // .skip
-u8 bSkip[4];  // .skip
-u8 nLastFrame[4];  // .skip
-u8 nCopyFrame[4];  // .skip
+static u8 nCounter[4];  // .skip
+static u8 bSkip[4];  // .skip
+static u8 nLastFrame[4];  // .skip
+static u8 nCopyFrame[4];  // .skip
 const f32 D_80135E00 = 0.0;
 const f32 D_80135E04 = 0.25;
 const f32 D_80135E08 = 2.0;

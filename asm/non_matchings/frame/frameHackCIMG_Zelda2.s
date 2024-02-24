@@ -21,9 +21,9 @@ lbl_80023A20:
 /* 01E48C 80023A2C 801E002C */  lwz     r0, 0x2c(r30)
 /* 01E490 80023A30 2C000001 */  cmpwi   r0, 1
 /* 01E494 80023A34 40810184 */  ble     lbl_80023BB8
-/* 01E498 80023A38 3C60800F */  lis     r3, sCommandCodes@ha
+/* 01E498 80023A38 3C60800F */  lis     r3, sCommandCodes_1702@ha
 /* 01E49C 80023A3C 3905FFD8 */  addi    r8, r5, -40
-/* 01E4A0 80023A40 3883AA58 */  addi    r4, r3, sCommandCodes@l
+/* 01E4A0 80023A40 3883AA58 */  addi    r4, r3, sCommandCodes_1702@l
 /* 01E4A4 80023A44 7D064378 */  mr      r6, r8
 /* 01E4A8 80023A48 38E00000 */  li      r7, 0
 /* 01E4AC 80023A4C 48000004 */  b       lbl_80023A50

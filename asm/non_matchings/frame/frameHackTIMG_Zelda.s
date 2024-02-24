@@ -14,9 +14,9 @@ glabel frameHackTIMG_Zelda
 /* 01EACC 8002406C 3C0402B0 */  addis   r0, r4, 0x2b0
 /* 01EAD0 80024070 28000000 */  cmplwi  r0, 0
 /* 01EAD4 80024074 40820108 */  bne     lbl_8002417C
-/* 01EAD8 80024078 3C80800F */  lis     r4, sCommandCodes@ha
+/* 01EAD8 80024078 3C80800F */  lis     r4, sCommandCodes_1679@ha
 /* 01EADC 8002407C 80DE0000 */  lwz     r6, 0(r30)
-/* 01EAE0 80024080 38A4AA38 */  addi    r5, r4, sCommandCodes@l
+/* 01EAE0 80024080 38A4AA38 */  addi    r5, r4, sCommandCodes_1679@l
 /* 01EAE4 80024084 38E00000 */  li      r7, 0
 /* 01EAE8 80024088 48000004 */  b       lbl_8002408C
 lbl_8002408C:

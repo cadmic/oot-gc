@@ -234,11 +234,199 @@ typedef struct Frame {
     /* 0x3D148 */ u16* nCameraBuffer;
 } Frame; // size = 0x3D150
 
+// __anon_0x2614E
+typedef enum FBTType {
+    FBT_NONE = -1,
+    FBT_DEPTH = 0,
+    FBT_IMAGE = 1,
+    FBT_COLOR_SHOW = 2,
+    FBT_COLOR_DRAW = 3,
+    FBT_COUNT = 4,
+} FBTType;
+
+// __anon_0x2625D
+typedef enum ColorHeat {
+    FRT_NONE = -1,
+    FRT_COLD = 0,
+    FRT_WARM = 1,
+} ColorHeat;
+
+// __anon_0x26C3F
+typedef enum FLTType {
+    FLT_NONE = -1,
+    FLT_TILE = 0,
+    FLT_BLOCK = 1,
+} FLTType;
+
 // __anon_0x2D45B
 typedef struct Primitive {
     /* 0x0 */ s32 nCount;
     /* 0x4 */ u8 anData[768];
 } Primitive; // size = 0x304
+
+// __anon_0x27B8C
+typedef enum ViewType {
+    FMT_MODELVIEW = 0,
+    FMT_PROJECTION = 1,
+} ViewType;
+
+// __anon_0x27E96
+typedef enum Etype {
+    FMT_NONE = -1,
+    FMT_FOG = 0,
+    FMT_GEOMETRY = 1,
+    FMT_TEXTURE1 = 2,
+    FMT_TEXTURE2 = 3,
+    FMT_OTHER0 = 4,
+    FMT_OTHER1 = 5,
+    FMT_COMBINE_COLOR1 = 6,
+    FMT_COMBINE_COLOR2 = 7,
+    FMT_COMBINE_ALPHA1 = 8,
+    FMT_COMBINE_ALPHA2 = 9,
+    FMT_COUNT = 10,
+} Etype;
+
+// __anon_0x2813A
+typedef enum ESize {
+    FS_NONE = -1,
+    FS_SOURCE = 0,
+    FS_TARGET = 1,
+    FS_COUNT = 2,
+} ESize;
+
+// Range: 0x8002113C -> 0x80021204
+s32 frameScaleMatrix(f32 (*matrixResult)[4], f32 (*matrix)[4], f32 rScale) ;
+
+// Erased
+static s32 frameConcatenateMatrix(f32 (*matrixResult)[4], f32 (*matrixA)[4], f32 (*matrixB)[4]) ;
+
+// Range: 0x80021070 -> 0x8002113C
+static s32 frameConvertYUVtoRGB(u32* YUV, u32* RGB) ;
+
+// Range: 0x80020FA4 -> 0x80021070
+static s32 packTakeBlocks(s32* piPack, u32* anPack, s32 nPackCount, s32 nBlockCount) ;
+
+// Range: 0x80020F3C -> 0x80020FA4
+static s32 packFreeBlocks(s32* piPack, u32* anPack) ;
+
+// Erased
+static s32 packReset(u32* anPack, s32 nPackCount) ;
+
+// Range: 0x80020E20 -> 0x80020F3C
+static s32 frameMakeTexture(struct Frame* pFrame, struct _FRAME_TEXTURE** ppTexture) ;
+
+// Erased
+static s32 frameFreeTexture(struct Frame* pFrame, struct _FRAME_TEXTURE* pTexture) ;
+
+// Range: 0x80020958 -> 0x80020E20
+static s32 frameSetupCache(struct Frame* pFrame) ;
+
+// Erased
+static s32 frameResetCache(struct Frame* pFrame) ;
+
+// Range: 0x80020764 -> 0x80020958
+static s32 frameUpdateCache(struct Frame* pFrame) ;
+
+// Erased
+static s32 frameMultiTexture(struct Frame* pFrame) ;
+
+// Range: 0x80020340 -> 0x80020764
+static s32 frameLoadTile(struct Frame* pFrame, struct _FRAME_TEXTURE** ppTexture, s32 iTileCode) ;
+
+// Erased
+static s32 frameSetupTrackBuffer() ;
+
+// Erased
+static s32 frameCheckTrackBuffer() ;
+
+// Erased
+static s32 frameUpdateTrackBuffer() ;
+
+// Range: 0x800202FC -> 0x80020340
+s32 frameDrawReset(struct Frame* pFrame, s32 nFlag) ;
+
+// Range: 0x800202D0 -> 0x800202FC
+s32 frameSetFill(struct Frame* pFrame, s32 bFill) ;
+
+// Erased
+static s32 frameGetFill(struct Frame* pFrame, s32* pbFill) ;
+
+// Erased
+static s32 frameSetWire(struct Frame* pFrame, s32 bWire) ;
+
+// Erased
+static s32 frameGetWire(struct Frame* pFrame, s32* pbWire) ;
+
+// Range: 0x800201A8 -> 0x800202D0
+s32 frameSetSize(struct Frame* pFrame, ESize eSize, s32 nSizeX, s32 nSizeY) ;
+
+// Erased
+static s32 frameGetSize(struct Frame* pFrame, ESize eSize, s32* pnSizeX, s32* pnSizeY) ;
+
+// Range: 0x80020014 -> 0x800201A8
+s32 frameSetMode(struct Frame* pFrame, Etype eType, u32 nMode) ;
+
+// Range: 0x8001FFFC -> 0x80020014
+s32 frameGetMode(struct Frame* pFrame, Etype eType, u32* pnMode) ;
+
+// Range: 0x8001F970 -> 0x8001FFFC
+s32 frameSetMatrix(struct Frame* pFrame, f32 (*matrix)[4], ViewType eType, s32 bLoad, s32 bPush,
+                   s32 nAddressN64) ;
+
+// Range: 0x8001F850 -> 0x8001F970
+s32 frameGetMatrix(struct Frame* pFrame, f32 (*matrix)[4], ViewType eType, s32 bPull) ;
+
+// Erased
+static s32 frameProjectVertex(struct Frame* pFrame, s32 iVertex, f32* prX, f32* prY, f32* prZ) ;
+
+// Range: 0x8001EDCC -> 0x8001F850
+s32 frameLoadVertex(struct Frame* pFrame, void* pBuffer, s32 iVertex0, s32 nCount) ;
+
+// Range: 0x8001EC80 -> 0x8001EDCC
+s32 frameCullDL(struct Frame* pFrame, s32 nVertexStart, s32 nVertexEnd) ;
+
+// Range: 0x8001EBA0 -> 0x8001EC80
+s32 frameLoadTLUT(struct Frame* pFrame, s32 nCount, s32 iTile) ;
+
+// Range: 0x8001DC58 -> 0x8001EBA0
+s32 frameLoadTMEM(struct Frame* pFrame, FLTType eType, s32 iTile) ;
+
+// Range: 0x8001DC4C -> 0x8001DC58
+s32 frameSetLightCount(struct Frame* pFrame, s32 nCount) ;
+
+// Range: 0x8001DB24 -> 0x8001DC4C
+s32 frameSetLight(struct Frame* pFrame, s32 iLight, char* pData) ;
+
+// Range: 0x8001DA74 -> 0x8001DB24
+s32 frameSetLookAt(struct Frame* pFrame, s32 iLookAt, char* pData) ;
+
+// Range: 0x8001D8E0 -> 0x8001DA74
+s32 frameSetViewport(struct Frame* pFrame, s16* pData) ;
+
+// Range: 0x8001D830 -> 0x8001D8E0
+s32 frameResetUCode(struct Frame* pFrame, ColorHeat eType) ;
+
+// Range: 0x8001D7F8 -> 0x8001D830
+s32 frameSetBuffer(struct Frame* pFrame, FBTType eType) ;
+
+// Range: 0x8001D740 -> 0x8001D7F8
+s32 frameFixMatrixHint(struct Frame* pFrame, s32 nAddressFloat, s32 nAddressFixed) ;
+
+// Erased
+static s32 frameGetMatrixHint(struct Frame* pFrame, u32 nAddress, s32* piHint) ;
+
+// Range: 0x8001D624 -> 0x8001D740
+s32 frameSetMatrixHint(struct Frame* pFrame, TypeProjection eProjection, s32 nAddressFloat,
+                       s32 nAddressFixed, f32 rNear, f32 rFar, f32 rFOVY, f32 rAspect, f32 rScale) ;
+
+// Range: 0x8001D4B8 -> 0x8001D624
+s32 frameInvalidateCache(struct Frame* pFrame, s32 nOffset0, s32 nOffset1) ;
+
+// Range: 0x8001D39C -> 0x8001D4B8
+s32 frameGetTextureInfo(struct Frame* pFrame, struct __anon_0x25A82* pInfo) ;
+
+// Range: 0x8001D34C -> 0x8001D39C
+void PSMTX44MultVecNoW(f32 (*m)[4], struct __anon_0x239BA* src, struct __anon_0x239BA* dst) ;
 
 s32 _frameDrawRectangle(Frame* pFrame, u32 nColor, s32 nX, s32 nY, s32 nSizeX, s32 nSizeY);
 s32 frameEvent(Frame* pFrame, s32 nEvent);
