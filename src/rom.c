@@ -290,6 +290,8 @@ static s32 romLoadBlock(Rom* pROM, s32 iBlock, s32 iCache, UnknownCallbackFunc p
     u32 nSize;
     u32 nOffset;
 
+    OSReport("romLoadBlock %d %d\n", iBlock, iCache);
+
     nOffset = iBlock * 0x2000;
     if ((nSize = pROM->nSize - nOffset) > 0x2000) {
         nSize = 0x2000;
@@ -478,21 +480,23 @@ static s32 romCacheGame(Rom* pROM) {
             gbProgress = 0;
             gbDisplayedError = 1;
         }
-        if (gnFlagZelda & 2) {
-            if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-            if (!romLoadRange(pROM, 0xAFDAA0, 0x0168515F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-        } else {
-            if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-            if (!romLoadRange(pROM, 0xAFDB00, 0x01684BCF, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-        }
+        // TODO: does this actually do anything?
+        // if (gnFlagZelda & 2) {
+        //     if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
+        //         return 0;
+        //     }
+        //     if (!romLoadRange(pROM, 0xAFDAA0, 0x0168515F, &blockCount, 1, &romCacheGame_ZELDA)) {
+        //         return 0;
+        //     }
+        // } else {
+        //     if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
+        //         return 0;
+        //     }
+        //     if (!romLoadRange(pROM, 0xAFDB00, 0x01684BCF, &blockCount, 1, &romCacheGame_ZELDA)) {
+        //         return 0;
+        //     }
+        // }
+
     } else if (romTestCode(pROM, "NZSJ") || romTestCode(pROM, "NZSE")) {
         if (!romLoadRange(pROM, 0, 0xEFAB5F, &blockCount, 1, NULL)) {
             return 0;
@@ -532,9 +536,10 @@ static s32 romLoadUpdate(Rom* pROM) {
     iBlock1 = pROM->load.nOffset1 >> 0xD;
 
     while (iBlock0 <= iBlock1) {
-        if (pCPU->nRetrace != pCPU->nRetraceUsed) {
-            return 1;
-        }
+        // if (pCPU->nRetrace != pCPU->nRetraceUsed) {
+        //     OSReport("romLoadUpdate nRetrace=%d nRetraceUsed=%d\n", pCPU->nRetrace, pCPU->nRetraceUsed);
+        //     return 1;
+        // }
 
         if (!simulatorTestReset(0, 0, 1, 0)) {
             return 0;
@@ -601,9 +606,10 @@ static s32 romCopyUpdate(Rom* pROM) {
     }
 
     while (pROM->copy.nSize != 0) {
-        if (pROM->copy.pCallback != NULL && pCPU->nRetrace != pCPU->nRetraceUsed) {
-            return 1;
-        }
+        OSReport("romCopyUpdate loop nSize=%08X\n", pROM->copy.nSize);
+        // if (pROM->copy.pCallback != NULL && pCPU->nRetrace != pCPU->nRetraceUsed) {
+        //     return 1;
+        // }
 
         if (!simulatorTestReset(0, 0, 1, 0)) {
             return 0;
@@ -927,6 +933,7 @@ inline s32 romCopyLoop(Rom* pROM, u8* pTarget, u32 nOffset, u32 nSize, UnknownCa
     pROM->copy.pTarget = pTarget;
     pROM->copy.nOffset = nOffset;
     pROM->copy.pCallback = pCallback;
+    OSReport("romCopyLoop nOffset=%08X nSize=%08X\n", nOffset, nSize);
 
     for (i = 0; i < pROM->nCountOffsetBlocks; i += 2) {
         if ((pROM->anOffsetBlock[i] <= nOffset) && (nOffset <= pROM->anOffsetBlock[i + 1])) {
@@ -942,6 +949,7 @@ inline s32 romCopyLoop(Rom* pROM, u8* pTarget, u32 nOffset, u32 nSize, UnknownCa
 s32 romCopy(Rom* pROM, void* pTarget, s32 nOffset, s32 nSize, UnknownCallbackFunc* pCallback) {
     tXL_FILE* pFile;
 
+    OSReport("romCopy nOffset=%08X nSize=%08X\n", nOffset, nSize);
     nOffset &= 0x07FFFFFF;
 
     if (!pROM->nSizeCacheRAM) {
@@ -1248,6 +1256,7 @@ s32 romEvent(Rom* pROM, s32 nEvent, void* pArgument) {
             pROM->nSizeCacheRAM = 0;
             pROM->nCountBlockRAM = 0;
             pROM->pCacheRAM = NULL;
+            OSReport("romEvent 2\n");
             break;
         case 3:
             if ((pROM->pBuffer != NULL) && (pROM->pBuffer != pROM->pCacheRAM) && (!xlHeapFree(&pROM->pBuffer))) {

@@ -16,6 +16,7 @@ _XL_OBJECTTYPE gClassPeripheral = {
 s32 peripheralDMA_Complete(void) {
     Peripheral* pPeripheral = SYSTEM_PERIPHERAL(gpSystem);
 
+    OSReport("DMA complete\n");
     pPeripheral->nStatus &= 0xFFFFFFFC;
     xlObjectEvent(pPeripheral->pHost, 0x1000, (void*)9);
     return 1;
@@ -82,6 +83,8 @@ s32 peripheralPut32(Peripheral* pPeripheral, u32 nAddress, s32* pData) {
                         }
                     }
                 } else if (0x10000000 <= nAddressROM && nAddressROM <= 0x1FBFFFFF) {
+                    OSReport("Starting DMA ram=%08X rom=%08X size=%08X\n", pPeripheral->nAddressRAM,
+                             pPeripheral->nAddressROM, pPeripheral->nSizePut + 1);
                     pPeripheral->nStatus |= 3;
                     bFlag = 0;
                     if (systemCopyROM((System*)pPeripheral->pHost, pPeripheral->nAddressRAM, pPeripheral->nAddressROM,

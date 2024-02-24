@@ -158,6 +158,8 @@ static s32 systemSetupGameRAM(System* pSystem) {
         bExpansion = 1;
     }
 
+    // Always use expansion RAM
+    bExpansion = 1;
     if (bExpansion) {
         nSizeRAM = 0x800000;
         nSizeCacheROM = 0x400000;
@@ -1303,6 +1305,7 @@ s32 systemCopyROM(System* pSystem, s32 nOffsetRAM, s32 nOffsetROM, s32 nSize, Sy
     pSystem->romCopy.pCallback = pCallback;
     pSystem->romCopy.nOffsetRAM = nOffsetRAM & 0x7FFFFF;
     pSystem->romCopy.nOffsetROM = nOffsetROM;
+    OSReport("systemCopyROM nSize=%08X\n", nSize);
 
     if (!ramGetBuffer(SYSTEM_RAM(pSystem), &pTarget, nOffsetRAM, (u32*)&nSize)) {
         return 0;
