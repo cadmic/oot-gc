@@ -1,5 +1,6 @@
 #include "dolphin/types.h"
 #include "frame.h"
+#include "macros.h"
 #include "xlObject.h"
 
 extern void* lbl_8001D3FC;
@@ -92,10 +93,9 @@ static s32 sCopyFrameSyncReceived;
 static u8 sSpecialZeldaHackON;
 static u32 sDestinationBuffer;
 static u32 sSrcBuffer;
-static u32 sConstantBufAddr[8];
+static u32 sConstantBufAddr[8] ALIGNAS(32);
 static u32 sNumAddr;  // .skip
 static u32 gHackCreditsColor;  // .skip
-s32 gNoSwapBuffer;  // .skip
 s32 ganNameColor[] = {
     0x00000000, 0x00000001, 0x00000002, 0x00000003, 0x00000004, 0x00000005, 0x00000006, 0x00000007,
 };
@@ -142,9 +142,13 @@ s32 (*gapfDrawLine[6])(Frame*, Primitive*) = {
     frameDrawLine_C0T0, frameDrawLine_C1T0, frameDrawLine_C2T0, frameDrawLine_C0T2, frameDrawLine_C1T2, frameDrawLine_C2T2,
 };
 
-static u8 gnCountMapHack[4];  // .skip
-static u8 nCounter[4];  // .skip
-static u8 bSkip[4];  // .skip
+u8 nCopyFrame[4];  // .skip
+u8 nLastFrame[4];  // .skip
+u8 bSkip[4];  // .skip
+u8 nCounter[4];  // .skip
+u8 gnCountMapHack[4];  // .skip
+s32 gNoSwapBuffer;  // .skip
+
 static u16 sTempZBuf[4800][4][4];
 
 s32 sZBufShift[] = {
@@ -158,8 +162,8 @@ char* gaszNameColorType[] = {
     "FOG", "FILL", "BLEND", D_800EAA0C, D_800EAA18,
 };
 
-u8 sFrameObj1[32];  // .skip
-u8 sFrameObj2[32];  // .skip
+static u8 sFrameObj1[32];  // .skip
+static u8 sFrameObj2[32];  // .skip
 // size = 0x20, address = 0x8012DE00
 static struct _GXTexObj sFrameObj_1564;
 // size = 0x20, address = 0x8012DE20
@@ -180,8 +184,6 @@ s32 sCommandCodes_1679[] = {
     0xF5500000, 0x07080200, 0xE6000000, 0x00000000, 0xF3000000, 0x073BF01A, 0xE7000000, 0x00000000,
 };
 
-static u8 nLastFrame[4];  // .skip
-static u8 nCopyFrame[4];  // .skip
 
 s32 sCommandCodes_1702[] = {
     0xE7000000, 0x00000000, 0xEF000CF0, 0x0F0A4004, 0xFB000000, 0xFFFFFFFF, 0xFC12FE25, 0xFFFFFBFD,
