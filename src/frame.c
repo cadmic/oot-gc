@@ -2,6 +2,71 @@
 #include "frame.h"
 #include "xlObject.h"
 
+extern void* lbl_8001D3FC;
+extern void* lbl_8001D418;
+extern void* lbl_8001D418;
+extern void* lbl_8001D42C;
+extern void* lbl_8001D42C;
+extern void* lbl_8001D42C;
+extern void* lbl_8001D444;
+extern void* lbl_8001D45C;
+extern void* lbl_8001D3FC;
+extern void* lbl_8001D418;
+
+extern void* lbl_80020074;
+extern void* lbl_80020084;
+extern void* lbl_800200C8;
+extern void* lbl_800200D8;
+extern void* lbl_800200E8;
+extern void* lbl_80020134;
+extern void* lbl_80020144;
+extern void* lbl_80020144;
+extern void* lbl_80020144;
+extern void* lbl_80020144;
+
+extern void* lbl_800297DC;
+extern void* lbl_800297E8;
+extern void* lbl_800297F4;
+extern void* lbl_80029800;
+extern void* lbl_8002980C;
+extern void* lbl_80029818;
+extern void* lbl_80029824;
+extern void* lbl_80029830;
+
+extern void* lbl_8002986C;
+extern void* lbl_80029878;
+extern void* lbl_80029884;
+extern void* lbl_80029890;
+extern void* lbl_8002989C;
+extern void* lbl_800298A8;
+extern void* lbl_80029920;
+extern void* lbl_800298B4;
+extern void* lbl_800298C0;
+extern void* lbl_800298CC;
+extern void* lbl_800298D8;
+extern void* lbl_800298E4;
+extern void* lbl_800298F0;
+extern void* lbl_800298FC;
+extern void* lbl_80029908;
+extern void* lbl_80029914;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_80029938;
+extern void* lbl_8002992C;
+
+// gemllo 
 const s32 D_800D31C0[] = {
     0x00000006, 0x00000000, 0x00000005, 0x00020000, 0x00000004, 0x00030000, 0x00000003, 0x00038000,
     0x00000002, 0x0003C000, 0x00000001, 0x0003E000, 0x00000000, 0x0003F000, 0x00000000, 0x0003F800,
@@ -16,8 +81,26 @@ _XL_OBJECTTYPE gClassFrame = {
     (EventFunc)frameEvent,
 };
 
+static s32 gbFrameValid;
+static s32 gbFrameBegin;
+static s32 snScissorChanged;
+static u32 snScissorXOrig;
+static u32 snScissorYOrig;
+static u32 snScissorWidth;
+static u32 snScissorHeight;
+static s32 sCopyFrameSyncReceived;
+static u8 sSpecialZeldaHackON;
+static u32 sDestinationBuffer;
+static u32 sSrcBuffer;
+static u32 sConstantBufAddr[8];
+static u32 sNumAddr;  // .skip
+static u32 gHackCreditsColor;  // .skip
+s32 gNoSwapBuffer;  // .skip
 s32 ganNameColor[] = {
     0x00000000, 0x00000001, 0x00000002, 0x00000003, 0x00000004, 0x00000005, 0x00000006, 0x00000007,
+};
+static s32 sRemapI[] = {
+    0x00020406, 0x080A0C0F,
 };
 
 s32 ganNamePixel[] = {
@@ -37,9 +120,7 @@ char D_800EA8EC[] = "TEXGGG (obsolete)";
 char D_800EA900[] = "TEXBBB (obsolete)";
 char D_800EA914[] = "GX_CC_KONST";
 
-static s32 sRemapI[] = {
-    0x00020406, 0x080A0C0F,
-};
+
 
 char* gaszNameColor[] = {
     "CPREV", "APREV", "C0", "A0", "C1", "A1", "C2", "A2",
@@ -61,6 +142,11 @@ s32 (*gapfDrawLine[6])(Frame*, Primitive*) = {
     frameDrawLine_C0T0, frameDrawLine_C1T0, frameDrawLine_C2T0, frameDrawLine_C0T2, frameDrawLine_C1T2, frameDrawLine_C2T2,
 };
 
+static u8 gnCountMapHack[4];  // .skip
+static u8 nCounter[4];  // .skip
+static u8 bSkip[4];  // .skip
+static u16 sTempZBuf[4800][4][4];
+
 s32 sZBufShift[] = {
     0x0003F800, 0x00000000, 0x0003F000, 0x00000000, 0x0003E000, 0x00000001, 0x0003C000, 0x00000002,
     0x00038000, 0x00000003, 0x00030000, 0x00000004, 0x00020000, 0x00000005, 0x00000000, 0x00000006,
@@ -72,9 +158,30 @@ char* gaszNameColorType[] = {
     "FOG", "FILL", "BLEND", D_800EAA0C, D_800EAA18,
 };
 
+u8 sFrameObj1[32];  // .skip
+u8 sFrameObj2[32];  // .skip
+// size = 0x20, address = 0x8012DE00
+static struct _GXTexObj sFrameObj_1564;
+// size = 0x20, address = 0x8012DE20
+static struct _GXTexObj sFrameObj_1565;
+// size = 0x20, address = 0x8012DE40
+static struct _GXTexObj sFrameObj_1568;
+// size = 0x1400, address = 0x8012DE60
+static u32 line_1582[80][4][4];
+static u16 line_1606[80][4][4];
+static u16 line_1630[80][4][4];
+static struct _GXTexObj sFrameObj_1647;
+static u8 cAlpha = 0x0F;
+static struct _GXTexObj sFrameObj_1660;
+static struct _GXTexObj frameObj_1663;
+static struct _GXTexObj frameObj_1673;
+
 s32 sCommandCodes_1679[] = {
     0xF5500000, 0x07080200, 0xE6000000, 0x00000000, 0xF3000000, 0x073BF01A, 0xE7000000, 0x00000000,
 };
+
+static u8 nLastFrame[4];  // .skip
+static u8 nCopyFrame[4];  // .skip
 
 s32 sCommandCodes_1702[] = {
     0xE7000000, 0x00000000, 0xEF000CF0, 0x0F0A4004, 0xFB000000, 0xFFFFFFFF, 0xFC12FE25, 0xFFFFFBFD,
@@ -85,6 +192,8 @@ s32 sCommandCodes2[] = {
     0xE7000000, 0x00000000, 0xE7000000, 0x00000000, 0xEF000CF0, 0x0F0A0004, 0xFCFFFFFF, 0xFFFCFE7F,
     0xFF88013F, 0x80784600,
 };
+
+static u16 tempLine[16][4][4];
 
 s32 GBIcode[] = {
     0xED000000, 0x0B000000, 0x0A000000,
@@ -144,16 +253,6 @@ s32 anRenderModeDatabaseCycle1[] = {
 
 char D_800EB13C[] = "GetTextureInfo: Unknown texture-format: %d\n";
 
-extern void* lbl_8001D3FC;
-extern void* lbl_8001D418;
-extern void* lbl_8001D418;
-extern void* lbl_8001D42C;
-extern void* lbl_8001D42C;
-extern void* lbl_8001D42C;
-extern void* lbl_8001D444;
-extern void* lbl_8001D45C;
-extern void* lbl_8001D3FC;
-extern void* lbl_8001D418;
 
 void* jtbl_800EB168[] = {
     &lbl_8001D3FC,
@@ -167,17 +266,6 @@ void* jtbl_800EB168[] = {
     &lbl_8001D3FC,
     &lbl_8001D418
 };
-
-extern void* lbl_80020074;
-extern void* lbl_80020084;
-extern void* lbl_800200C8;
-extern void* lbl_800200D8;
-extern void* lbl_800200E8;
-extern void* lbl_80020134;
-extern void* lbl_80020144;
-extern void* lbl_80020144;
-extern void* lbl_80020144;
-extern void* lbl_80020144;
 
 void* jtbl_800EB190[] = {
     &lbl_80020074,
@@ -195,15 +283,6 @@ void* jtbl_800EB190[] = {
 char D_800EB1B8[] = "frameEnd: INTERNAL ERROR: Called when 'gbFrameBegin' is TRUE!\n";
 char D_800EB1F8[] = "Waiting for valid?\n";
 
-extern void* lbl_800297DC;
-extern void* lbl_800297E8;
-extern void* lbl_800297F4;
-extern void* lbl_80029800;
-extern void* lbl_8002980C;
-extern void* lbl_80029818;
-extern void* lbl_80029824;
-extern void* lbl_80029830;
-
 
 void* jtbl_800EB20C[] = {
     &lbl_800297DC,
@@ -215,39 +294,6 @@ void* jtbl_800EB20C[] = {
     &lbl_80029824,
     &lbl_80029830,
 };
-
-extern void* lbl_8002986C;
-extern void* lbl_80029878;
-extern void* lbl_80029884;
-extern void* lbl_80029890;
-extern void* lbl_8002989C;
-extern void* lbl_800298A8;
-extern void* lbl_80029920;
-extern void* lbl_800298B4;
-extern void* lbl_800298C0;
-extern void* lbl_800298CC;
-extern void* lbl_800298D8;
-extern void* lbl_800298E4;
-extern void* lbl_800298F0;
-extern void* lbl_800298FC;
-extern void* lbl_80029908;
-extern void* lbl_80029914;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_80029938;
-extern void* lbl_8002992C;
 
 void* jtbl_800EB22C[] = {
     &lbl_8002986C,
@@ -284,52 +330,86 @@ void* jtbl_800EB22C[] = {
     &lbl_8002992C,
 };
 
-
 char D_800EB2AC[] = "LoadTexture: Unknown FILTER mode (%d)\n";
 char D_800EB2D4[] = "MakeTexture: 'aTexture' is exhausted!\0\0";
 
-static u32 sConstantBufAddr[8];
-static u16 sTempZBuf[4800][4][4];
-u8 sFrameObj1[32];  // .skip
-u8 sFrameObj2[32];  // .skip
-// size = 0x20, address = 0x8012DE00
-static struct _GXTexObj sFrameObj_1564;
-// size = 0x20, address = 0x8012DE20
-static struct _GXTexObj sFrameObj_1565;
-// size = 0x20, address = 0x8012DE40
-static struct _GXTexObj sFrameObj_1568;
-// size = 0x1400, address = 0x8012DE60
-static u32 line_1582[80][4][4];
-static u16 line_1606[80][4][4];
-static u16 line_1630[80][4][4];
-static struct _GXTexObj sFrameObj_1647;
-static struct _GXTexObj sFrameObj_1660;
-static struct _GXTexObj frameObj_1663;
-static struct _GXTexObj frameObj_1673;
-static u16 tempLine[16][4][4];
-
-static u8 cAlpha = 0x0F;
 static char D_80134E58[] = "frame.c";
-static s32 gbFrameValid;
-static s32 gbFrameBegin;
-static s32 snScissorChanged;
-static u32 snScissorXOrig;
-static u32 snScissorYOrig;
-static u32 snScissorWidth;
-static u32 snScissorHeight;
-static s32 sCopyFrameSyncReceived;
-static u8 sSpecialZeldaHackON;
-static u32 sDestinationBuffer;
-static u32 sSrcBuffer;
+/*
+static s32 frameDrawSetupFog_Zelda1;
+static s32 frameDrawSetupFog_Default;
+static s32 frameDrawSyncCallback;
+static s32 frameDrawDone;
+static s32 frameMakeTLUT;
+static s32 frameMakePixels;
+static s32 frameLoadTexture;
+static s32 frameDrawSetup2D;
+static s32 frameDrawSetupSP;
+static s32 frameGetCombineColor;
+static s32 frameGetCombineAlpha;
+static s32 frameDrawSetupDP;
+static s32 frameCheckTriangleDivide;
+static s32 frameDrawTriangle_Setup;
+static s32 frameDrawLine_Setup;
+static s32 frameDrawRectFill;
+static s32 frameDrawRectFill_Setup;
+static s32 frameDrawRectTexture;
+static s32 frameDrawRectTexture_Setup;
+static s32 frameShow;
+static s32 frameSetScissor;
+static s32 frameSetDepth;
+static s32 frameSetColor;
+static s32 frameBeginOK;
+static s32 frameBegin;
+static s32 frameEnd;
+static s32 ZeldaDrawFrameNoBlend;
+static s32 ZeldaDrawFrameBlur;
+static s32 ZeldaDrawFrame;
+static s32 CopyAndConvertCFB;
+static s32 ZeldaGreyScaleConvert;
+static s32 ZeldaDrawFrameShrink;
+static s32 ZeldaDrawFrameCamera;
+static s32 frameHackTIMG_Zelda;
+static s32 frameHackCIMG_Zelda2;
+static s32 frameHackCIMG_Zelda;
+static s32 frameHackCIMG_Zelda2_Shrink;
+static s32 frameHackCIMG_Zelda2_Camera;
+static s32 PanelDrawBG8;
+static s32 PanelDrawBG16;
+static s32 PanelDrawFR3D;
+static s32 frameHackTIMG_Panel;
+static s32 frameHackCIMG_Panel;
+static s32 frameGetDepth;
+static s32 frameScaleMatrix;
+static s32 frameConvertYUVtoRGB;
+static s32 packTakeBlocks;
+static s32 packFreeBlocks;
+static s32 frameMakeTexture;
+static s32 frameSetupCache;
+static s32 frameUpdateCache;
+static s32 frameLoadTile;
+static s32 frameDrawReset;
+static s32 frameSetFill;
+static s32 frameSetSize;
+static s32 frameSetMode;
+static s32 frameGetMode;
+static s32 frameSetMatrix;
+static s32 frameGetMatrix;
+static s32 frameLoadVertex;
+static s32 frameCullDL;
+static s32 frameLoadTLUT;
+static s32 frameLoadTMEM;
+static s32 frameSetLightCount;
+static s32 frameSetLight;
+static s32 frameSetLookAt;
+static s32 frameSetViewport;
+static s32 frameResetUCode;
+static s32 frameSetBuffer;
+static s32 frameFixMatrixHint;
+static s32 frameSetMatrixHint;
+static s32 frameInvalidateCache;
+static s32 frameGetTextureInfo;
+static s32 PSMTX44MultVecNoW;*/
 
-static u32 sNumAddr;  // .skip
-static u32 gHackCreditsColor;  // .skip
-s32 gNoSwapBuffer;  // .skip
-u8 gnCountMapHack[4];  // .skip
-static u8 nCounter[4];  // .skip
-static u8 bSkip[4];  // .skip
-static u8 nLastFrame[4];  // .skip
-static u8 nCopyFrame[4];  // .skip
 const f32 D_80135E00 = 0.0;
 const f32 D_80135E04 = 0.25;
 const f32 D_80135E08 = 2.0;
