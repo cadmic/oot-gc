@@ -11,18 +11,18 @@ GXTevAlphaArg gAlphaArgs[10] = {
 };
 
 static TevColorOp sUsualOps[] = {
-    { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
-    { 0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
-    { 0x00000001, 0x00000000, 0x00000000, 0x01000000, 0x00000000 },
-    { 0x00000000, 0x00000000, 0x00000000, 0x01000000, 0x00000000 },
-};
-
-static GXTevAlphaArg sUsualAArgs[] = {
-    GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO,
+    { 0x00000000, 0x00000000, 0x00000000, 0, 0x00000000 },
+    { 0x00000001, 0x00000000, 0x00000000, 0, 0x00000000 },
+    { 0x00000001, 0x00000000, 0x00000000, 1, 0x00000000 },
+    { 0x00000000, 0x00000000, 0x00000000, 1, 0x00000000 },
 };
 
 static GXTevColorArg sUsualCArgs[] = {
     GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO,
+};
+
+static GXTevAlphaArg sUsualAArgs[] = {
+    GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO,
 };
 
 static s32 texelType[] = {
@@ -51,9 +51,9 @@ static s32 zeroType[] = {
     0x0000000F, 0x00000007,
 };
 
-char D_80135408[] = "NOO!!";
+char D_80135408[6] = "NOO!!";
 
-s32 D_801360D8[] = {
+const s32 D_801360D8[2] = {
     0x00000000, 0x00000000,
 };
 
