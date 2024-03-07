@@ -2200,7 +2200,10 @@ static bool cpuExecuteUpdate(Cpu* pCPU, s32* pnAddressGCN, u32 nCount) {
         nCounterDelta = fTickScale * ((-1 - pCPU->nTickLast + nCount) << nTickMultiplier);
     }
     if ((pCPU->nMode & 0x40) && pCPU->nRetraceUsed != pCPU->nRetrace) {
-        if (videoForceRetrace(SYSTEM_VIDEO(pSystem), true)) {
+        // pCPU->nRetrace must be updated for async DMA operations (i.e. romCopy) to complete.
+        // However, the gz loader runs before the video interface is initialized, so we add a check
+        // here so that the gz loader doesn't hang.
+        if (SYSTEM_VIDEO(pSystem)->nStatus == 0 || videoForceRetrace(SYSTEM_VIDEO(pSystem), true)) {
             nDelta = pCPU->nRetrace - pCPU->nRetraceUsed;
             if (nDelta < 0) {
                 nDelta = -nDelta;
