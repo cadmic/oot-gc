@@ -2132,6 +2132,10 @@ static s32 cpuExecuteUpdate(Cpu* pCPU, s32* pnAddressGCN, u32 nCount) {
             } else {
                 pCPU->nRetraceUsed = ((Cpu*)pCPU)->nRetrace;
             }
+
+            if (pCPU->nRetraceUsed % 120 == 0) {
+                xlHeapReportStats();
+            }
         }
     }
 

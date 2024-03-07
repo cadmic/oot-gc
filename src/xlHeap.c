@@ -640,3 +640,38 @@ s32 xlHeapReset(void) {
     xlHeapBlockCacheReset();
     return 1;
 }
+
+void xlHeapReportStats(void) {
+    u32* pBlock;
+    u32 nBlock;
+    s32 nBlockSize;
+
+    s32 totalBlocks = 0;
+    s32 totalBytes = 0;
+    s32 allocatedBlocks = 0;
+    s32 allocatedBytes = 0;
+
+    pBlock = gpHeapBlockFirst;
+    while ((u32)pBlock < (u32)gpHeapBlockLast) {
+        nBlock = *pBlock;
+        nBlockSize = BLOCK_SIZE(nBlock);
+
+        if (CHKSUM_LO(nBlock) != CHKSUM_HI(nBlock)) {
+            OSReport("xlHeap: block checksum error\n");
+            return;
+        }
+
+        totalBlocks++;
+        totalBytes += nBlockSize * 4;
+
+        if (!BLOCK_IS_FREE(nBlock)) {
+            allocatedBlocks++;
+            allocatedBytes += nBlockSize * 4;
+        }
+
+        pBlock += nBlockSize + 1;
+    }
+
+    OSReport("xlHeap: start=%08X end=%08X blocks=%d (allocated=%d) bytes=%08X (allocated=%08X)\n",
+             (u32)gpHeapBlockFirst, (u32)gpHeapBlockLast, totalBlocks, allocatedBlocks, totalBytes, allocatedBytes);
+}
