@@ -94,12 +94,12 @@ static u32 contMap[4][GCN_BTN_COUNT] = {
         0x04000000,     // GCN_BTN_UNK9
         0x02000000,     // GCN_BTN_UNK10
         0x01000000,     // GCN_BTN_UNK11
-        N64_BTN_L,      // GCN_BTN_DPAD_UP
-        N64_BTN_L,      // GCN_BTN_DPAD_DOWN
-        N64_BTN_L,      // GCN_BTN_DPAD_LEFT
-        N64_BTN_L,      // GCN_BTN_DPAD_RIGHT
+        N64_BTN_DUP,    // GCN_BTN_DPAD_UP
+        N64_BTN_DDOWN,  // GCN_BTN_DPAD_DOWN
+        N64_BTN_DLEFT,  // GCN_BTN_DPAD_LEFT
+        N64_BTN_DRIGHT, // GCN_BTN_DPAD_RIGHT
         N64_BTN_CUP,    // GCN_BTN_CSTICK_UP
-        N64_BTN_CDOWN,  // GCN_BTN_CSTICK_DOWN
+        N64_BTN_L,      // GCN_BTN_CSTICK_DOWN
         N64_BTN_CLEFT,  // GCN_BTN_CSTICK_LEFT
         N64_BTN_CRIGHT, // GCN_BTN_CSTICK_RIGHT
     },
