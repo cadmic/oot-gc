@@ -482,7 +482,7 @@ static s32 romCacheGame(Rom* pROM) {
             if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
                 return 0;
             }
-            if (!romLoadRange(pROM, 0xAFDAA0, 0x0168515F, &blockCount, 1, &romCacheGame_ZELDA)) {
+            if (!romLoadRange(pROM, 0xAFDAA0, 0x0128515F, &blockCount, 1, &romCacheGame_ZELDA)) {
                 return 0;
             }
         } else {

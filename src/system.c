@@ -213,6 +213,10 @@ static s32 systemSetupGameRAM(System* pSystem) {
         nSizeCacheROM -= nSizeExtra;
     }
 
+    gnFlagZelda = 2;
+    nSizeRAM = 0x800000;
+    nSizeCacheROM = 0x500000;
+
     if (!ramSetSize(SYSTEM_RAM(pSystem), nSizeRAM)) {
         return 0;
     }
