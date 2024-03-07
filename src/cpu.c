@@ -2121,7 +2121,7 @@ static s32 cpuExecuteUpdate(Cpu* pCPU, s32* pnAddressGCN, u32 nCount) {
         nCounterDelta = fTickScale * ((-1 - pCPU->nTickLast + nCount) << nTickMultiplier);
     }
     if ((pCPU->nMode & 0x40) && pCPU->nRetraceUsed != pCPU->nRetrace) {
-        if (videoForceRetrace(SYSTEM_VIDEO(pSystem), 1)) {
+        if (SYSTEM_VIDEO(pSystem)->nStatus == 0 || videoForceRetrace(SYSTEM_VIDEO(pSystem), 1)) {
             nDelta = pCPU->nRetrace - pCPU->nRetraceUsed;
             if (nDelta < 0) {
                 nDelta = -nDelta;
