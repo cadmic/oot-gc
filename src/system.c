@@ -147,6 +147,7 @@ static s32 systemSetupGameRAM(System* pSystem) {
     u32 nCode;
     u32 iCode;
     u32 anCode[0x100]; // size = 0x400
+    char* acNameFile;
 
     bExpansion = 0;
     pROM = SYSTEM_ROM(pSystem);
@@ -213,6 +214,16 @@ static s32 systemSetupGameRAM(System* pSystem) {
         nSizeCacheROM -= nSizeExtra;
     }
 
+    // Overrides for gz
+    acNameFile = SYSTEM_ROM(pSystem)->acNameFile;
+    if (strcmp(acNameFile, "zlj_f.n64") == 0) {
+        gnFlagZelda = 2;
+    } else if (strcmp(acNameFile, "urazlj_f.n64") == 0) {
+        gnFlagZelda = 4;
+    }
+    nSizeRAM = 0x800000; // 8 MiB
+    nSizeCacheROM = 0x500000; // 5 MiB
+
     if (!ramSetSize(SYSTEM_RAM(pSystem), nSizeRAM)) {
         return 0;
     }
@@ -221,8 +232,8 @@ static s32 systemSetupGameRAM(System* pSystem) {
         return 0;
     }
 
-    OSReport("systemSetupGameRAM: nCode=%08X gnFlagZelda=%d nSizeRAM=%08X nSizeCacheROM=%08X\n", nCode, gnFlagZelda,
-             nSizeRAM, nSizeCacheROM);
+    OSReport("systemSetupGameRAM: filename=%s nCode=%08X gnFlagZelda=%d nSizeRAM=%08X nSizeCacheROM=%08X\n", acNameFile,
+             nCode, gnFlagZelda, nSizeRAM, nSizeCacheROM);
     return 1;
 }
 
