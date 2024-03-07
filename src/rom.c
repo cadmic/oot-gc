@@ -164,10 +164,13 @@ static s32 romMakeFreeCache(Rom* pROM, s32* piCache, RomCacheType eType) {
         if (!romFindFreeCache(pROM, &iCache, RCT_RAM)) {
             if (romFindOldestBlock(pROM, &iBlockOldest, RCT_RAM, 2)) {
                 iCache = pROM->aBlock[iBlockOldest].iCache;
-                if (!romSetBlockCache(pROM, iBlockOldest, RCT_ARAM) &&
-                    romFindOldestBlock(pROM, &iBlockOldest, RCT_RAM, 0)) {
-                    iCache = pROM->aBlock[iBlockOldest].iCache;
-                    romMarkBlockAsFree(pROM, iBlockOldest);
+                if (!romSetBlockCache(pROM, iBlockOldest, RCT_ARAM)) {
+                    if (romFindOldestBlock(pROM, &iBlockOldest, RCT_RAM, 0)) {
+                        iCache = pROM->aBlock[iBlockOldest].iCache;
+                        romMarkBlockAsFree(pROM, iBlockOldest);
+                    } else {
+                        OSReport("romMakeFreeCache: no ROM cache space available\n");
+                    }
                 }
             } else {
                 return 0;

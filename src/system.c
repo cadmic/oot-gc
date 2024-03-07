@@ -221,6 +221,8 @@ static s32 systemSetupGameRAM(System* pSystem) {
         return 0;
     }
 
+    OSReport("systemSetupGameRAM: nCode=%08X gnFlagZelda=%d bExpansion=%d nSizeRAM=%08X nSizeCacheROM=%08X\n", nCode,
+             gnFlagZelda, bExpansion, nSizeRAM, nSizeCacheROM);
     return 1;
 }
 
