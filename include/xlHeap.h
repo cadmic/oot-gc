@@ -14,4 +14,6 @@ s32 xlHeapGetFree(s32* pnFreeBytes);
 s32 xlHeapSetup(void* pHeap, s32 nSizeBytes);
 s32 xlHeapReset(void);
 
+void xlHeapReportStats(void);
+
 #endif

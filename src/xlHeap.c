@@ -9,6 +9,8 @@ static s32 gnHeapTakeCacheCount;
 static u32* gapHeapBlockCache[11][32];
 s32 gnSizeHeap;
 
+s32 gbStatsDirty;
+
 #define PADDING_MAGIC 0x1234abcd
 
 #define FLAG_FREE 0x01000000
@@ -257,6 +259,8 @@ s32 xlHeapTake(void** ppHeap, s32 nByteCount) {
     u32* pBlockNext;
     u32* pBlockNextNext;
 
+    gbStatsDirty = 1;
+
     bValid = 0;
     *ppHeap = NULL;
 
@@ -351,6 +355,8 @@ s32 xlHeapFree(void** ppHeap) {
     s32 nBlockNextSize;
     u32* pBlock;
     u32* pBlockNext;
+
+    gbStatsDirty = 1;
 
     if (ppHeap == NULL || (u32)*ppHeap < (u32)gpHeapBlockFirst || (u32)*ppHeap > (u32)gpHeapBlockLast) {
         return 0;
@@ -638,5 +644,43 @@ s32 xlHeapReset(void) {
     *gpHeapBlockLast = 0;
 
     xlHeapBlockCacheReset();
+
+    OSReport("xlHeapReset: heap initialized to %08X-%08X (%08X bytes)\n", (u32)gpHeapBlockFirst, (u32)gpHeapBlockLast,
+             (u32)gpHeapBlockLast - (u32)gpHeapBlockFirst);
     return 1;
+}
+
+void xlHeapReportStats(void) {
+    u32* pBlock;
+    u32 nBlock;
+    s32 nBlockSize;
+
+    s32 freeBytes = 0;
+    s32 allocatedBytes = 0;
+
+    if (!gbStatsDirty) {
+        return;
+    }
+    gbStatsDirty = 0;
+
+    pBlock = gpHeapBlockFirst;
+    while ((u32)pBlock < (u32)gpHeapBlockLast) {
+        nBlock = *pBlock;
+        nBlockSize = BLOCK_SIZE(nBlock);
+
+        if (CHKSUM_LO(nBlock) != CHKSUM_HI(nBlock)) {
+            OSReport("xlHeapReportStats: block checksum error for block at %08X!\n", (u32)pBlock);
+            return;
+        }
+
+        if (BLOCK_IS_FREE(nBlock)) {
+            freeBytes += nBlockSize * 4;
+        } else {
+            allocatedBytes += nBlockSize * 4;
+        }
+
+        pBlock += nBlockSize + 1;
+    }
+
+    OSReport("xlHeapReportStats: %08X bytes allocated, %08X bytes free\n", allocatedBytes, freeBytes);
 }
