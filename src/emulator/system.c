@@ -285,6 +285,8 @@ static bool systemSetupGameRAM(System* pSystem) {
         return false;
     }
 
+    OSReport("systemSetupGameRAM: nCode=%08X gnFlagZelda=%d nSizeRAM=%08X nSizeCacheROM=%08X\n", nCode, gnFlagZelda,
+             nSizeRAM, nSizeCacheROM);
     return true;
 }
 

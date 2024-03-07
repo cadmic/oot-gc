@@ -208,6 +208,8 @@ bool ramGetBuffer(Ram* pRAM, void** ppRAM, u32 nOffset, u32* pnSize) {
     }
 
     if ((pnSize != NULL) && ((u32)(nOffset + *pnSize) >= pRAM->nSize)) {
+        OSReport("ramGetBuffer: requested buffer at %08X of size %08X is beyond memory size %08X!\n", nOffset, *pnSize,
+                 pRAM->nSize);
         nSize = pRAM->nSize - nOffset;
         *pnSize = nSize;
 
@@ -242,6 +244,7 @@ bool ramSetSize(Ram* pRAM, s32 nSize) {
     }
 
     pRAM->nSize = nSizeRAM;
+    OSReport("ramSetSize: RAM buffer is %08X bytes at %08X\n", nSizeRAM, (u32)pRAM->pBuffer);
 
     return true;
 }
