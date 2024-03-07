@@ -1047,7 +1047,7 @@ s32 xlMain(void) {
 
     mCard.bufferCreated = 0;
     mCard.isBroken = 0;
-    mcardInit(&mCard);
+    // mcardInit(&mCard);
 
     if (simulatorGetArgument(SAT_NAME, &szNameROM)) {
         strcpy(acNameROM, szNameROM);
