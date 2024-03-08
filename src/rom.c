@@ -433,6 +433,173 @@ static s32 romCacheGame_ZELDA(f32 rProgress) {
     return 1;
 }
 
+typedef struct DmaEntry {
+    /* 0x00 */ u32 vromStart;
+    /* 0x04 */ u32 vromEnd;
+    /* 0x08 */ u32 romStart;
+    /* 0x0C */ u32 romEnd;
+} DmaEntry;
+
+static s32 ganSceneFileIndices[] = {
+    1006, // ydan_scene
+    1019, // ddan_scene
+    1037, // bdan_scene
+    1054, // Bmori1_scene
+    1078, // HIDAN_scene
+    1106, // MIZUsin_scene
+    1130, // jyasinzou_scene
+    1160, // HAKAdan_scene
+    1184, // HAKAdanCH_scene
+    1192, // ice_doukutu_scene
+    1205, // men_scene
+    1217, // ganontika_scene
+    1238, // spot00_scene
+    1240, // spot01_scene
+    1242, // spot02_scene
+    1245, // spot03_scene
+    1248, // spot04_scene
+    1252, // spot05_scene
+    1254, // spot06_scene
+    1256, // spot07_scene
+    1259, // spot08_scene
+    1261, // spot09_scene
+    1263, // spot10_scene
+    1274, // spot11_scene
+    1276, // spot12_scene
+    1279, // spot13_scene
+    1282, // spot15_scene
+    1284, // spot16_scene
+    1286, // spot17_scene
+    1289, // spot18_scene
+    1294, // market_day_scene
+    1296, // market_night_scene
+    1298, // kenjyanoma_scene
+    1300, // tokinoma_scene
+    1303, // link_home_scene
+    1305, // kokiri_shop_scene
+    1307, // kokiri_home_scene
+    1309, // kakusiana_scene
+    1324, // entra_scene
+    1326, // moribossroom_scene
+    1329, // syatekijyou_scene
+    1331, // shop1_scene
+    1333, // hairal_niwa_scene
+    1335, // ganon_tou_scene
+    1337, // market_alley_scene
+    1339, // spot20_scene
+    1341, // market_ruins_scene
+    1343, // entra_n_scene
+    1345, // enrui_scene
+    1347, // market_alley_n_scene
+    1349, // hiral_demo_scene
+    1351, // kokiri_home3_scene
+    1353, // malon_stable_scene
+    1355, // kakariko_scene
+    1357, // bdan_boss_scene
+    1360, // FIRE_bs_scene
+    1363, // hut_scene
+    1365, // daiyousei_izumi_scene
+    1367, // hakaana_scene
+    1369, // yousei_izumi_tate_scene
+    1371, // yousei_izumi_yoko_scene
+    1373, // golon_scene
+    1375, // zoora_scene
+    1377, // drag_scene
+    1379, // alley_shop_scene
+    1381, // night_shop_scene
+    1383, // impa_scene
+    1385, // labo_scene
+    1387, // tent_scene
+    1389, // nakaniwa_scene
+    1391, // ddan_boss_scene
+    1394, // ydan_boss_scene
+    1397, // HAKAdan_bs_scene
+    1400, // MIZUsin_bs_scene
+    1403, // ganon_scene
+    1414, // ganon_boss_scene
+    1416, // jyasinboss_scene
+    1421, // kokiri_home4_scene
+    1423, // kokiri_home5_scene
+    1425, // ganon_final_scene
+    1427, // kakariko3_scene
+    1429, // hakasitarelay_scene
+    1437, // shrine_scene
+    1439, // turibori_scene
+    1441, // shrine_n_scene
+    1443, // shrine_r_scene
+    1445, // hakaana2_scene
+    1447, // gerudoway_scene
+    1454, // hairal_niwa_n_scene
+    1456, // bowling_scene
+    1458, // hakaana_ouke_scene
+    1462, // hylia_labo_scene
+    1464, // souko_scene
+    1468, // miharigoya_scene
+    1470, // mahouya_scene
+    1472, // takaraya_scene
+    1480, // ganon_sonogo_scene
+    1486, // ganon_demo_scene
+    1488, // face_shop_scene
+    1490, // kinsuta_scene
+    1492, // ganontikasonogo_scene
+};
+
+static u32 ganOffsetBlockFromDmadata[250];
+
+// Set up ROM cache for OOT (gz or not) from dmadata, so that files can move around between versions.
+static s32 romCacheGameFromDmadata(Rom* pROM) {
+    static DmaEntry dmadata[1509] ALIGNAS(32);
+    s32 blockCount = 0;
+    s32 nCountOffsetBlocks = 0;
+    s32 rangeStart;
+    s32 rangeEnd;
+    s32 i;
+
+    // Load dmadata
+    if (!simulatorDVDRead(&pROM->fileInfo, (void*)dmadata, sizeof(dmadata), 0x7170, NULL)) {
+        return 0;
+    }
+
+    // elf_message_field, elf_message_ydan
+    ganOffsetBlockFromDmadata[nCountOffsetBlocks++] = dmadata[1004].romStart;
+    ganOffsetBlockFromDmadata[nCountOffsetBlocks++] = dmadata[1006].romStart - 1;
+
+    // scene file indices
+    for (i = 0; i < ARRAY_COUNT(ganSceneFileIndices); i++) {
+        rangeStart = dmadata[ganSceneFileIndices[i]].romStart;
+        if (i + 1 < ARRAY_COUNT(ganSceneFileIndices)) {
+            rangeEnd = dmadata[ganSceneFileIndices[i + 1]].romStart - 1;
+        } else {
+            rangeEnd = dmadata[1495].romStart - 1;
+        }
+
+        ganOffsetBlockFromDmadata[nCountOffsetBlocks++] = rangeStart;
+        ganOffsetBlockFromDmadata[nCountOffsetBlocks++] = rangeEnd;
+    }
+
+    pROM->anOffsetBlock = ganOffsetBlockFromDmadata;
+    pROM->nCountOffsetBlocks = nCountOffsetBlocks;
+
+    // Load up to the start of code
+    rangeStart = 0;
+    rangeEnd = dmadata[27].romStart - 1;
+    OSReport("romCacheGameFromDmadata: loading range %08X-%08X\n", rangeStart, rangeEnd);
+    if (!romLoadRange(pROM, rangeStart, rangeEnd, &blockCount, 1, &romCacheGame_ZELDA)) {
+        return 0;
+    }
+
+    // Load from end of code to start of prerendered room skyboxes
+    rangeStart = dmadata[28].romStart;
+    rangeEnd = dmadata[960].romStart - 1;
+    OSReport("romCacheGameFromDmadata: loading range %08X-%08X\n", rangeStart, rangeEnd);
+    if (!romLoadRange(pROM, rangeStart, rangeEnd, &blockCount, 1, &romCacheGame_ZELDA)) {
+        return 0;
+    }
+
+    OSReport("romCacheGameFromDmadata: loaded %d blocks (%08X bytes)\n", blockCount, blockCount * 0x2000);
+    return 1;
+}
+
 static s32 romCacheGame(Rom* pROM) {
     s32 blockCount;
     s32 nSize;
@@ -447,16 +614,6 @@ static s32 romCacheGame(Rom* pROM) {
     bIsCZLE = romTestCode(pROM, "CZLE");
     bIsCZLJ = romTestCode(pROM, "CZLJ");
     if (bIsCZLE || bIsCZLJ) {
-        if (gnFlagZelda & 2) {
-            if (!bIsCZLE) {
-                pROM->anOffsetBlock = ganOffsetBlock_ZLJ;
-                pROM->nCountOffsetBlocks = 0xC6;
-            }
-        } else if (!bIsCZLE) {
-            pROM->anOffsetBlock = ganOffsetBlock_URAZLJ;
-            pROM->nCountOffsetBlocks = 0xC6;
-        }
-
         if (bIsCZLE) {
             szName = gnFlagZelda & 2 ? "zle.tpl" : "urazle.tpl";
         } else if (bIsCZLJ) {
@@ -478,20 +635,8 @@ static s32 romCacheGame(Rom* pROM) {
             gbProgress = 0;
             gbDisplayedError = 1;
         }
-        if (gnFlagZelda & 2) {
-            if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-            if (!romLoadRange(pROM, 0xAFDAA0, 0x0168515F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-        } else {
-            if (!romLoadRange(pROM, 0, 0xA6251F, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
-            if (!romLoadRange(pROM, 0xAFDB00, 0x01684BCF, &blockCount, 1, &romCacheGame_ZELDA)) {
-                return 0;
-            }
+        if (!romCacheGameFromDmadata(pROM)) {
+            return 0;
         }
     } else if (romTestCode(pROM, "NZSJ") || romTestCode(pROM, "NZSE")) {
         if (!romLoadRange(pROM, 0, 0xEFAB5F, &blockCount, 1, NULL)) {
