@@ -638,9 +638,9 @@ static s32 romCacheGameFromDmadata(Rom* pROM) {
         return 0;
     }
 
-    // Load from end of code to start of prerendered room skyboxes
+    // Load from end of code to start of skyboxes (except for normal sky)
     rangeStart = dmadata[28].romStart;
-    rangeEnd = dmadata[960].romStart - 1;
+    rangeEnd = dmadata[956].romStart - 1;
     OSReport("romCacheGameFromDmadata: loading range %08X-%08X\n", rangeStart, rangeEnd);
     if (!romLoadRange(pROM, rangeStart, rangeEnd, &blockCount, 1, &romCacheGame_ZELDA)) {
         return 0;
