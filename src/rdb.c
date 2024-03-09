@@ -8,10 +8,15 @@ _XL_OBJECTTYPE gClassRdb = {
     (EventFunc)rdbEvent,
 };
 
+const int RDB_STRING_MAX_SIZE = 255;
+
 // This function only clears the string buffer, but it may have output the
 // string to the console in debug mode.
 inline void rdbPrintString(Rdb* pRDB) {
     s32 iCounter;
+
+    pRDB->szString[pRDB->nIndexString + 1] = '\0';
+    OSReport("gz: %s", pRDB->szString);
 
     for (iCounter = 0; iCounter < pRDB->nIndexString; iCounter++) {
         pRDB->szString[iCounter] = ' ';
@@ -45,7 +50,7 @@ static s32 rdbPut32(Rdb* pRDB, u32 nAddress, s32* pData) {
                             pRDB->szString[pRDB->nIndexString] = (s32)((*pData >> 16) & 0xFF);
                             if (pRDB->szString[pRDB->nIndexString] == '\n') {
                                 rdbPrintString(pRDB);
-                            } else if (pRDB->nIndexString > 256) {
+                            } else if (pRDB->nIndexString >= RDB_STRING_MAX_SIZE) {
                                 rdbPrintString(pRDB);
                             } else {
                                 pRDB->nIndexString++;
@@ -57,7 +62,7 @@ static s32 rdbPut32(Rdb* pRDB, u32 nAddress, s32* pData) {
                             pRDB->szString[pRDB->nIndexString] = (s32)((*pData >> 16) & 0xFF);
                             if (pRDB->szString[pRDB->nIndexString] == '\n') {
                                 rdbPrintString(pRDB);
-                            } else if (pRDB->nIndexString > 256) {
+                            } else if (pRDB->nIndexString >= RDB_STRING_MAX_SIZE) {
                                 rdbPrintString(pRDB);
                             } else {
                                 pRDB->nIndexString++;
@@ -65,7 +70,7 @@ static s32 rdbPut32(Rdb* pRDB, u32 nAddress, s32* pData) {
                             pRDB->szString[pRDB->nIndexString] = (s32)((*pData >> 8) & 0xFF);
                             if (pRDB->szString[pRDB->nIndexString] == '\n') {
                                 rdbPrintString(pRDB);
-                            } else if (pRDB->nIndexString > 256) {
+                            } else if (pRDB->nIndexString >= RDB_STRING_MAX_SIZE) {
                                 rdbPrintString(pRDB);
                             } else {
                                 pRDB->nIndexString++;
@@ -73,7 +78,7 @@ static s32 rdbPut32(Rdb* pRDB, u32 nAddress, s32* pData) {
                             pRDB->szString[pRDB->nIndexString] = *pData & 0xFF;
                             if (pRDB->szString[pRDB->nIndexString] == '\n') {
                                 rdbPrintString(pRDB);
-                            } else if (pRDB->nIndexString > 256) {
+                            } else if (pRDB->nIndexString >= RDB_STRING_MAX_SIZE) {
                                 rdbPrintString(pRDB);
                             } else {
                                 pRDB->nIndexString++;
