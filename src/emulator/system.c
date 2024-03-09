@@ -627,7 +627,7 @@ static bool systemSetupGameALL(System* pSystem) {
 
         if (!(gnFlagZelda & 1)) {
             if (!(gnFlagZelda & 2)) {
-                // CE-J/MQ-J?
+                // MQ-J
                 if (DVDOpen(Z_ICON_PATH, &fileInfo) == 1 &&
                     !simulatorDVDRead(&fileInfo, mCard.saveIcon, (gz_iconSize + 0x1F) & 0xFFFFFFE0, 0, NULL)) {
                     return false;
@@ -643,9 +643,10 @@ static bool systemSetupGameALL(System* pSystem) {
 
                 DVDClose(&fileInfo);
                 simulatorUnpackTexPalette((TEXPalette*)mCard.saveBanner);
-                mcardOpen(&mCard, MCARD_FILE_NAME, MCARD_COMMENT, mCard.saveIcon, mCard.saveBanner, "ZELDAX",
-                          &gSystemRomConfigurationList[i].currentControllerConfig, MCARD_FILE_SIZE, 0x8000);
+                mcardOpen(&mCard, "GZ MQ-J", "GZ MQ-J", mCard.saveIcon, mCard.saveBanner, "GZ",
+                          &gSystemRomConfigurationList[i].currentControllerConfig, 0xC000, 0x8000);
             } else {
+                // GC-J/CE-J
                 if (DVDOpen(Z_ICON_PATH, &fileInfo) == 1 &&
                     !simulatorDVDRead(&fileInfo, mCard.saveIcon, (gz_iconSize + 0x1F) & 0xFFFFFFE0, 0, NULL)) {
                     return false;
@@ -661,8 +662,9 @@ static bool systemSetupGameALL(System* pSystem) {
 
                 DVDClose(&fileInfo);
                 simulatorUnpackTexPalette((TEXPalette*)mCard.saveBanner);
-                mcardOpen(&mCard, MCARD_FILE_NAME, MCARD_COMMENT, mCard.saveIcon, mCard.saveBanner, "ZELDA",
-                          &gSystemRomConfigurationList[i].currentControllerConfig, MCARD_FILE_SIZE, 0x8000);
+                // TODO: Configure for CE-J
+                mcardOpen(&mCard, "GZ GC-J", "GZ GC-J", mCard.saveIcon, mCard.saveBanner, "GZ",
+                          &gSystemRomConfigurationList[i].currentControllerConfig, 0xC000, 0x8000);
             }
         } else {
             // debug rom?
