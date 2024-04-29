@@ -619,7 +619,7 @@ static bool frameGetCombineAlpha(Frame* pFrame, GXTevAlphaArg* pnAlphaTEV, s32 n
 bool frameDrawTriangle_C3T3(Frame* pFrame, Primitive* pPrimitive) {
     u32 pad[20];
 
-    if (gpSystem->eTypeROM == SRT_ZELDA1 && pPrimitive->nCount == 3 && (pFrame->aMode[4] & 0xC00) == 0xC00) {
+    if (gpSystem->eTypeROM == SRT_ZELDA1 && pPrimitive->nCount == 3 && (pFrame->aMode[FMT_OTHER0] & 0xC00) == 0xC00) {
         Mtx44Ptr pMatrix = pFrame->aMatrixModel[pFrame->iMatrixModel];
         Vertex* vtx = &pFrame->aVertex[pPrimitive->anData[0]];
         if ((vtx->rSum == 53.0f && pMatrix[3][0] == -3080.0f && pMatrix[3][2] == 6067.0f) ||
@@ -861,7 +861,7 @@ bool frameEnd(Frame* pFrame) {
     pFrame->nCountFrames++;
     gbFrameValid = true;
 
-    if (pFrame->aBuffer[0].nAddress != 0) {
+    if (pFrame->aBuffer[FBT_DEPTH].nAddress != 0) {
         pData = &sTempZBuf;
 
         GXSetTexCopySrc(0, 0, GC_FRAME_WIDTH, GC_FRAME_HEIGHT);
@@ -1443,12 +1443,12 @@ bool frameHackTIMG_Zelda(Frame* pFrame, u64** pnGBI, u32* pnCommandLo, u32* pnCo
     return true;
 }
 
-bool frameHackCIMG_Zelda2(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI) {
+bool frameHackCIMG_Zelda2(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI, u32 nCommandLo, u32 nCommandHi) {
     u32 i;
     u32* pGBI;
-    s32 pad[4];
+    s32 pad[2];
 
-    if (pBuffer->nAddress == pFrame->aBuffer[0].nAddress) {
+    if (pBuffer->nAddress == pFrame->aBuffer[FBT_DEPTH].nAddress) {
         pFrame->nHackCount += 1;
     }
 
@@ -1523,7 +1523,7 @@ bool frameHackCIMG_Zelda2(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI) {
     return true;
 }
 
-bool frameHackCIMG_Zelda(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI, u32 nCommandLo) {
+bool frameHackCIMG_Zelda(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI, u32 nCommandLo, u32 nCommandHi) {
     u32 i;
     u32 low2;
     u32 high2;
@@ -1535,7 +1535,7 @@ bool frameHackCIMG_Zelda(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI, u32 nC
         }
     }
 
-    if (pBuffer->nAddress == pFrame->aBuffer[0].nAddress && pBuffer->nWidth == N64_FRAME_WIDTH) {
+    if (pBuffer->nAddress == pFrame->aBuffer[FBT_DEPTH].nAddress && pBuffer->nWidth == N64_FRAME_WIDTH) {
         low2 = pnGBI[1];
         high2 = pnGBI[1] >> 32;
         if (high2 == 0xFD10013F) {
@@ -1598,7 +1598,6 @@ bool frameHackCIMG_Zelda(Frame* pFrame, FrameBuffer* pBuffer, u64* pnGBI, u32 nC
         }
     }
 
-    PAD_STACK();
     PAD_STACK();
     return true;
 }
@@ -2160,13 +2159,13 @@ bool frameSetLightCount(Frame* pFrame, s32 nCount) {
 
 bool frameSetBuffer(Frame* pFrame, FrameBufferType eType) {
     if (((u32)(eType - 2) > 1) && (eType == FBT_DEPTH)) {
-        pFrame->nOffsetDepth0 = pFrame->aBuffer[0].nAddress & 0x03FFFFFF;
+        pFrame->nOffsetDepth0 = pFrame->aBuffer[FBT_DEPTH].nAddress & 0x03FFFFFF;
         pFrame->nOffsetDepth1 = pFrame->nOffsetDepth0 + 0x257FC;
     }
     return true;
 }
 
-bool frameFixMatrixHint(Frame* pFrame, u32 nAddressFloat, u32 nAddressFixed) {
+bool frameFixMatrixHint(Frame* pFrame, s32 nAddressFloat, s32 nAddressFixed) {
     s32 iHint;
     s32 iHintTest;
 
