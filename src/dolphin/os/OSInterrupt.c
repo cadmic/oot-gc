@@ -6,6 +6,7 @@ static ASM void ExternalInterruptHandler(register __OSException exception, regis
 
 extern void __RAS_OSDisableInterrupts_begin(void);
 extern void __RAS_OSDisableInterrupts_end(void);
+int __cntlzw(unsigned int n);
 
 static __OSInterruptHandler* InterruptHandlerTable;
 
@@ -24,7 +25,7 @@ static OSInterruptMask InterruptPrioTable[] = {
     0xFFFFFFFF,
 };
 
-ASM BOOL OSDisableInterrupts(void){
+ASM bool OSDisableInterrupts(void){
 #ifdef __MWERKS__ // clang-format off
     nofralloc
 entry    __RAS_OSDisableInterrupts_begin
@@ -37,7 +38,7 @@ entry    __RAS_OSDisableInterrupts_end
 #endif // clang-format on
 }
 
-ASM BOOL OSEnableInterrupts(void){
+ASM bool OSEnableInterrupts(void){
 #ifdef __MWERKS__ // clang-format off
     nofralloc
 
@@ -49,7 +50,7 @@ ASM BOOL OSEnableInterrupts(void){
 #endif // clang-format on
 }
 
-ASM BOOL OSRestoreInterrupts(register BOOL level){
+ASM bool OSRestoreInterrupts(register bool level){
 #ifdef __MWERKS__ // clang-format off
 
     nofralloc
@@ -232,7 +233,7 @@ u32 SetInterruptMask(OSInterruptMask mask, OSInterruptMask current) {
 }
 
 OSInterruptMask __OSMaskInterrupts(OSInterruptMask global) {
-    BOOL enabled;
+    bool enabled;
     OSInterruptMask prev;
     OSInterruptMask local;
     OSInterruptMask mask;
@@ -251,7 +252,7 @@ OSInterruptMask __OSMaskInterrupts(OSInterruptMask global) {
 }
 
 OSInterruptMask __OSUnmaskInterrupts(OSInterruptMask global) {
-    BOOL enabled;
+    bool enabled;
     OSInterruptMask prev;
     OSInterruptMask local;
     OSInterruptMask mask;
@@ -394,7 +395,7 @@ void __OSDispatchInterrupt(__OSException exception, OSContext* context) {
 static ASM void ExternalInterruptHandler(register __OSException exception, register OSContext* context) {
 #pragma unused(exception)
 #ifdef __MWERKS__ // clang-format off
-    nofralloc 
+    nofralloc
     OS_EXCEPTION_SAVE_GPRS(context)
 
     stwu r1, -8(r1)

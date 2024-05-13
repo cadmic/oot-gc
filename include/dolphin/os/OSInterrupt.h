@@ -2,7 +2,9 @@
 #define _DOLPHIN_OSINTERRUPT
 
 #include "dolphin/os/OSContext.h"
+#include "dolphin/os/OSPriv.h"
 #include "dolphin/types.h"
+#include "string.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,8 +95,8 @@ extern volatile __OSInterrupt __OSLastInterrupt;
 extern volatile u32 __OSLastInterruptSrr0;
 extern volatile OSTime __OSLastInterruptTime;
 
-BOOL OSDisableInterrupts(void);
-BOOL OSRestoreInterrupts(register BOOL level);
+bool OSDisableInterrupts(void);
+bool OSRestoreInterrupts(register bool level);
 __OSInterruptHandler __OSSetInterruptHandler(__OSInterrupt interrupt, __OSInterruptHandler handler);
 __OSInterruptHandler __OSGetInterruptHandler(__OSInterrupt interrupt);
 void __OSInterruptInit(void);

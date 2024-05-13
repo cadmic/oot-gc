@@ -1,30 +1,32 @@
+#include "dolphin/hw_regs.h"
 #include "dolphin/os.h"
 #include "macros.h"
 
-#define TRUNC(n, a) (((u32)(n)) & ~((a)-1))
-#define ROUND(n, a) (((u32)(n) + (a)-1) & ~((a)-1))
+#define TRUNC(n, a) (((u32)(n)) & ~((a) - 1))
+#define ROUND(n, a) (((u32)(n) + (a) - 1) & ~((a) - 1))
 
-vu16 __MEMRegs[64] AT_ADDRESS(0xCC004000);
 extern OSErrorHandler __OSErrorTable[16];
 
-static BOOL OnReset(BOOL final);
+static bool OnReset(bool final);
 
 static OSResetFunctionInfo ResetFunctionInfo = {
     OnReset,
     127,
+    NULL,
+    NULL,
 };
 
-static BOOL OnReset(BOOL final) {
-    if (final != FALSE) {
+static bool OnReset(bool final) {
+    if (final != false) {
         __MEMRegs[8] = 0xFF;
         __OSMaskInterrupts(0xf0000000);
     }
-    return TRUE;
+    return true;
 }
 
-inline u32 OSGetPhysicalMemSize() { return *(u32*)(OSPhysicalToCached(0x0028)); }
+inline u32 OSGetPhysicalMemSize(void) { return *(u32*)(OSPhysicalToCached(0x0028)); }
 
-inline u32 OSGetConsoleSimulatedMemSize() { return *(u32*)(OSPhysicalToCached(0x00F0)); }
+inline u32 OSGetConsoleSimulatedMemSize(void) { return *(u32*)(OSPhysicalToCached(0x00F0)); }
 
 static void MEMIntrruptHandler(__OSInterrupt interrupt, OSContext* context) {
     u32 addr;
@@ -42,7 +44,7 @@ static void MEMIntrruptHandler(__OSInterrupt interrupt, OSContext* context) {
     __OSUnhandledException(OS_ERROR_PROTECTION, context, cause, addr);
 }
 
-ASM void Config24MB() {
+ASM void Config24MB(void) {
 #ifdef __MWERKS__ // clang-format off
     nofralloc
 
@@ -90,7 +92,7 @@ ASM void Config24MB() {
 #endif // clang-format on
 }
 
-ASM void Config48MB() {
+ASM void Config48MB(void) {
 #ifdef __MWERKS__ // clang-format off
     nofralloc
 
@@ -150,10 +152,10 @@ ASM void RealMode(register u32 addr) {
 #endif // clang-format on
 }
 
-void __OSInitMemoryProtection() {
+void __OSInitMemoryProtection(void) {
     u32 padding[8];
     u32 simulatedSize;
-    BOOL enabled;
+    bool enabled;
     simulatedSize = OSGetConsoleSimulatedMemSize();
     enabled = OSDisableInterrupts();
 

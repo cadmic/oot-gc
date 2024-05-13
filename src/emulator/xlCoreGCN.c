@@ -1,5 +1,9 @@
 #include "emulator/xlCoreGCN.h"
+#include "dolphin.h"
 #include "emulator/simGCN.h"
+#include "emulator/xlHeap.h"
+#include "emulator/xlList.h"
+#include "emulator/xlPostGCN.h"
 #include "macros.h"
 
 u8 gTgPcTPL[32897] = {
@@ -19,14 +23,11 @@ GXRenderModeObj* rmode;
 
 const GXColor D_80135D00 = {0};
 
-// TODO: move to dolphin/tex.h as `TEXDescriptor* TEXGet(TEXPalette* pal, u32 id)`
-__anon_0xDAF8* TEXGet(u8* pTexture, u32 i);
-
-s32 xlCoreReset(void) {
+bool xlCoreReset(void) {
     OSFreeToHeap(__OSCurrHeap, gpHeap);
     OSSetArenaLo(gArenaLo);
     OSSetArenaHi(gArenaHi);
-    return 1;
+    return true;
 }
 
 static void xlCoreInitRenderMode(GXRenderModeObj* mode) {
@@ -98,7 +99,7 @@ static void xlCoreInitMem(void) {
     OSSetArenaLo(arenaHi);
 }
 
-inline void xlCoreInitFilter(u8* pFilter, s32 size, f32 factor) {
+static inline void xlCoreInitFilter(u8* pFilter, s32 size, f32 factor) {
     s32 iFilter;
 
     for (iFilter = 0; iFilter < size; iFilter++) {
@@ -134,21 +135,21 @@ void xlCoreInitGX(void) {
 
 s32 xlCoreGetArgumentCount(void) { return gnCountArgument; }
 
-s32 xlCoreGetArgument(s32 iArgument, char** pszArgument) {
+bool xlCoreGetArgument(s32 iArgument, char** pszArgument) {
     if ((iArgument >= 0) && (iArgument < gnCountArgument)) {
         *pszArgument = *(gaszArgument + iArgument);
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
-s32 xlCoreHiResolution(void) { return 1; }
+bool xlCoreHiResolution(void) { return true; }
 
-s32 main(s32 nCount, char** aszArgument) {
+int main(int nCount, char** aszArgument) {
     void* pHeap;
     u32 i;
-    __anon_0xDAF8* tdp;
+    TEXDescriptor* tdp;
     GXColor black;
     s32 nSizeHeap;
     s32 nSize;
@@ -156,25 +157,9 @@ s32 main(s32 nCount, char** aszArgument) {
     gnCountArgument = nCount;
     gaszArgument = aszArgument;
 
-    __PADDisableRecalibration(1);
+    __PADDisableRecalibration(true);
     OSInitAlarm();
-
-#ifdef __MWERKS__
-    asm {
-        li      r3, 4
-        oris    r3, r3, 4
-        mtspr   GQR2, r3
-        li      r3, 5
-        oris    r3, r3, 5
-        mtspr   GQR3, r3
-        li      r3, 6
-        oris    r3, r3, 6
-        mtspr   GQR4, r3
-        li      r3, 7
-        oris    r3, r3, 7
-        mtspr   GQR5, r3
-    }
-#endif
+    OSInitFastCast();
 
     nSizeHeap = 0;
 
@@ -198,11 +183,11 @@ s32 main(s32 nCount, char** aszArgument) {
         VIWaitForRetrace();
     }
 
-    simulatorUnpackTexPalette((__anon_0xDB69*)gTgPcTPL);
+    simulatorUnpackTexPalette((TEXPalette*)gTgPcTPL);
 
     black = D_80135D00;
     for (i = 0; i < 2; i++) {
-        tdp = TEXGet(gTgPcTPL, i);
+        tdp = TEXGet((TEXPalette*)gTgPcTPL, i);
         GXInitTexObj(&g_texMap[i], tdp->textureHeader->data, tdp->textureHeader->width, tdp->textureHeader->height,
                      tdp->textureHeader->format, GX_CLAMP, GX_CLAMP, GX_FALSE);
     }
@@ -220,42 +205,42 @@ s32 main(s32 nCount, char** aszArgument) {
     }
 
     if (!xlPostSetup()) {
-        return 0;
+        return false;
     }
 
     if (!xlHeapSetup(pHeap, nSize)) {
-        return 0;
+        return false;
     }
 
     if (!xlListSetup()) {
-        return 0;
+        return false;
     }
 
     if (!xlObjectSetup()) {
-        return 0;
+        return false;
     }
 
-    __PADDisableRecalibration(0);
+    __PADDisableRecalibration(false);
     xlMain();
 
     if (!xlObjectReset()) {
-        return 0;
+        return false;
     }
 
     if (!xlListReset()) {
-        return 0;
+        return false;
     }
 
     if (!xlHeapReset()) {
-        return 0;
+        return false;
     }
 
     if (!xlPostReset()) {
-        return 0;
+        return false;
     }
 
     OSPanic("xlCoreGCN.c", 577, "CORE DONE!");
-    return 0;
+    return false;
 }
 
 void xlCoreBeforeRender(void) {

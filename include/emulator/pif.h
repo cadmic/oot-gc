@@ -4,6 +4,16 @@
 #include "dolphin.h"
 #include "emulator/xlObject.h"
 
+#define PIF_RAM_START 0x7C0
+#define PIF_RAM_END 0x7FF
+
+#define PIF_DATA_CRC_MESSAGE_BYTES 32
+#define PIF_DATA_CRC_LENGTH 8
+#define PIF_DATA_CRC_GENERATOR 0x85
+
+#define PIF_GET_RAM_ADDR(pPIF, iData) (((u8*)(pPIF)->pRAM) + (iData))
+#define PIF_GET_RAM_DATA(pPIF, iData) (*PIF_GET_RAM_ADDR(pPIF, iData))
+
 // __anon_0x3C277
 typedef enum ControllerType {
     CT_NONE = 0,
@@ -19,18 +29,26 @@ typedef enum ControllerType {
 
 // __anon_0x3C350
 typedef struct Pif {
-    /* 0x00 */ struct Rom* pROM;
-    /* 0x04 */ struct Ram* pRAM;
+    /* 0x00 */ void* pROM;
+    /* 0x04 */ void* pRAM;
     /* 0x08 */ void* pHost;
     /* 0x0C */ u16 controllerType[5];
     /* 0x16 */ char controllerStatus[5];
     /* 0x1C */ ControllerType eControllerType[5];
 } Pif; // size = 0x30
 
-s32 pifReadRumble(Pif* pPIF, s32 channel, u16 address, u8* data);
-s32 pifWriteRumble(Pif* pPIF, s32 channel, u16 address, u8* data);
-s32 pifGetEControllerType(Pif* pPIF, s32 channel, ControllerType* type);
-s32 pifEvent(Pif* pPIF, s32 nEvent, void* pArgument);
+bool pifReadRumble(Pif* pPIF, s32 channel, u16 address, u8* data);
+bool pifWriteRumble(Pif* pPIF, s32 channel, u16 address, u8* data);
+bool pifSetControllerType(Pif* pPIF, s32 channel, ControllerType type);
+bool pifGetEControllerType(Pif* pPIF, s32 channel, ControllerType* type);
+bool pifSetEEPROMType(Pif* pPIF, ControllerType type);
+bool pifGetEEPROMSize(Pif* pPIF, u32* size);
+bool pifExecuteCommand(Pif* pPIF, u8* buffer, u8* ptx, u8* prx, s32 channel);
+bool pifProcessInputData(Pif* pPIF);
+bool pifProcessOutputData(Pif* pPIF);
+bool pifSetData(Pif* pPIF, u8* acData);
+bool pifGetData(Pif* pPIF, u8* acData);
+bool pifEvent(Pif* pPIF, s32 nEvent, void* pArgument);
 
 extern _XL_OBJECTTYPE gClassPIF;
 

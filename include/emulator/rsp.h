@@ -2,7 +2,36 @@
 #define _RSP_H
 
 #include "dolphin.h"
+#include "emulator/xlList.h"
 #include "emulator/xlObject.h"
+
+#define SP_DMEM_SIZE 0x1000
+
+#define SP_DMEM_START 0x04000000
+#define SP_IMEM_START 0x04001000
+
+#define SP_BASE_REG 0x04040000
+#define SP_MEM_ADDR_REG (SP_BASE_REG | 0x0000)
+#define SP_DRAM_ADDR_REG (SP_BASE_REG | 0x0004)
+#define SP_RD_LEN_REG (SP_BASE_REG | 0x0008)
+#define SP_WR_LEN_REG (SP_BASE_REG | 0x000C)
+#define SP_STATUS_REG (SP_BASE_REG | 0x0010)
+#define SP_DMA_FULL_REG (SP_BASE_REG | 0x0014)
+#define SP_DMA_BUSY_REG (SP_BASE_REG | 0x0018)
+#define SP_SEMAPHORE_REG (SP_BASE_REG | 0x001C)
+
+#define SP_PC_REG 0x04080000
+#define SP_IBIST_REG 0x04080004
+
+#define RSP_REG_ADDR_HI(addr) (((addr) >> 12) & 0xFFF)
+#define RSP_REG_ADDR_LO(addr) ((addr) & 0x1F)
+#define RSP_TASK(pRSP) ((RspTask*)((u8*)pRSP->pDMEM + (SP_DMEM_SIZE - sizeof(RspTask))))
+
+#define GBI_COMMAND_HI(p) (((u32*)(p))[0])
+#define GBI_COMMAND_LO(p) (((u32*)(p))[1])
+
+#define SEGMENT_ADDRESS(pRSP, nOffsetRDRAM) \
+    (pRSP->anBaseSegment[((nOffsetRDRAM) >> 24) & 0xF] + ((nOffsetRDRAM) & 0xFFFFFF))
 
 typedef enum __anon_0x581E7 {
     RUT_NOCODE = -1,
@@ -13,7 +42,7 @@ typedef enum __anon_0x581E7 {
     RUT_UNKNOWN = 4,
 } __anon_0x581E7;
 
-typedef enum __anon_0x60B3F {
+typedef enum RspUCodeType {
     RUT_NONE = -1,
     RUT_TURBO = 0,
     RUT_SPRITE2D = 1,
@@ -29,7 +58,7 @@ typedef enum __anon_0x60B3F {
     RUT_AUDIO1 = 11,
     RUT_AUDIO2 = 12,
     RUT_JPEG = 13,
-} __anon_0x60B3F;
+} RspUCodeType;
 
 // __anon_0x44829
 typedef enum RspUpdateMode {
@@ -37,7 +66,7 @@ typedef enum RspUpdateMode {
     RUM_IDLE = 1,
 } RspUpdateMode;
 
-typedef struct __anon_0x575BD {
+typedef struct RspTask {
     /* 0x00 */ s32 nType;
     /* 0x04 */ s32 nFlag;
     /* 0x08 */ s32 nOffsetBoot;
@@ -54,19 +83,19 @@ typedef struct __anon_0x575BD {
     /* 0x34 */ s32 nLengthMBI;
     /* 0x38 */ s32 nOffsetYield;
     /* 0x3C */ s32 nLengthYield;
-} __anon_0x575BD; // size = 0x40
+} RspTask; // size = 0x40
 
-typedef struct __anon_0x57890 {
+typedef struct RspYield {
     /* 0x00 */ s32 iDL;
-    /* 0x04 */ s32 bValid;
-    /* 0x08 */ struct __anon_0x575BD task;
+    /* 0x04 */ bool bValid;
+    /* 0x08 */ RspTask task;
     /* 0x48 */ s32 nCountVertex;
-    /* 0x4C */ __anon_0x60B3F eTypeUCode;
+    /* 0x4C */ RspUCodeType eTypeUCode;
     /* 0x50 */ u32 n2TriMult;
     /* 0x54 */ u32 nVersionUCode;
     /* 0x58 */ s32 anBaseSegment[16];
     /* 0x98 */ u64* apDL[16];
-} __anon_0x57890; // size = 0xD8
+} RspYield; // size = 0xD8
 
 typedef struct __anon_0x57AB1 {
     /* 0x00 */ f32 aRotations[2][2];
@@ -101,21 +130,45 @@ typedef struct __anon_0x57E56 {
     /* 0x0 */ u8 nRed;
     /* 0x1 */ u8 nGreen;
     /* 0x2 */ u8 nBlue;
-    /* 0x3 */ char rVectorX;
-    /* 0x4 */ char rVectorY;
-    /* 0x5 */ char rVectorZ;
+    /* 0x3 */ s8 rVectorX;
+    /* 0x4 */ s8 rVectorY;
+    /* 0x5 */ s8 rVectorZ;
 } __anon_0x57E56; // size = 0x6
 
 typedef struct __anon_0x58107 {
     /* 0x0 */ s16 anSlice[8];
 } __anon_0x58107; // size = 0x10
 
+typedef struct __anon_0x58360 {
+    /* 0x0 */ s16 r;
+    /* 0x2 */ s16 g;
+    /* 0x4 */ s16 b;
+    /* 0x6 */ s16 a;
+} __anon_0x58360; // size = 0x8
+
+typedef struct __anon_0x583EE {
+    /* 0x0 */ s16 y;
+    /* 0x2 */ s16 u;
+    /* 0x4 */ s16 v;
+} __anon_0x583EE; // size = 0x6
+
+typedef struct __anon_0x5B8F2 {
+    /* 0x00 */ s32 nOffsetCode;
+    /* 0x04 */ s32 nLengthCode;
+    /* 0x08 */ s32 nOffsetData;
+    /* 0x0C */ s32 nLengthData;
+    /* 0x10 */ char acUCodeName[64];
+    /* 0x50 */ u64 nUCodeCheckSum;
+    /* 0x58 */ s32 nCountVertex;
+    /* 0x5C */ RspUCodeType eType;
+} __anon_0x5B8F2; // size = 0x60
+
 // __anon_0x5845E
 typedef struct Rsp {
     /* 0x0000 */ s32 nMode;
-    /* 0x0004 */ struct __anon_0x57890 yield;
+    /* 0x0004 */ RspYield yield;
     /* 0x00DC */ u32 nTickLast;
-    /* 0x00E0 */ s32 (*pfUpdateWaiting)();
+    /* 0x00E0 */ s32 (*pfUpdateWaiting)(void);
     /* 0x00E4 */ u32 n2TriMult;
     /* 0x00E8 */ s32 aStatus[4];
     /* 0x00F8 */ f32 aMatrixOrtho[4][4];
@@ -194,7 +247,7 @@ typedef struct Rsp {
     /* 0x3914 */ s32 nAddressRDRAM;
     /* 0x3918 */ struct tXL_LIST* pListUCode;
     /* 0x391C */ s32 nCountVertex;
-    /* 0x3920 */ enum __anon_0x60B3F eTypeUCode;
+    /* 0x3920 */ RspUCodeType eTypeUCode;
     /* 0x3924 */ u32 nVersionUCode;
     /* 0x3928 */ s32 anBaseSegment[16];
     /* 0x3968 */ u64* apDL[16];
@@ -209,11 +262,64 @@ typedef struct Rsp {
     /* 0x39C8 */ s32* dctBuf;
 } Rsp; // size = 0x39CC
 
-s32 rspInvalidateCache(Rsp* pRSP, s32 nOffset0, s32 nOffset1);
-s32 rspEnableABI(Rsp* pRSP, s32 bFlag);
-s32 rspFrameComplete(Rsp* pRSP);
-s32 rspUpdate(Rsp* pRSP, RspUpdateMode eMode);
-s32 rspEvent(Rsp* pRSP, s32 nEvent, void* pArgument);
+typedef struct __anon_0x5ED4F {
+    /* 0x00 */ u16 imageX;
+    /* 0x02 */ u16 imageW;
+    /* 0x04 */ s16 frameX;
+    /* 0x06 */ u16 frameW;
+    /* 0x08 */ u16 imageY;
+    /* 0x0A */ u16 imageH;
+    /* 0x0C */ s16 frameY;
+    /* 0x0E */ u16 frameH;
+    /* 0x10 */ u32 imagePtr;
+    /* 0x14 */ u16 imageLoad;
+    /* 0x16 */ u8 imageFmt;
+    /* 0x17 */ u8 imageSiz;
+    /* 0x18 */ u16 imagePal;
+    /* 0x1A */ u16 imageFlip;
+    /* 0x1C */ u16 tmemW;
+    /* 0x1E */ u16 tmemH;
+    /* 0x20 */ u16 tmemLoadSH;
+    /* 0x22 */ u16 tmemLoadTH;
+    /* 0x24 */ u16 tmemSizeW;
+    /* 0x26 */ u16 tmemSize;
+} __anon_0x5ED4F; // size = 0x28
+
+typedef struct __anon_0x5F05A {
+    /* 0x00 */ u16 imageX;
+    /* 0x02 */ u16 imageW;
+    /* 0x04 */ s16 frameX;
+    /* 0x06 */ u16 frameW;
+    /* 0x08 */ u16 imageY;
+    /* 0x0A */ u16 imageH;
+    /* 0x0C */ s16 frameY;
+    /* 0x0E */ u16 frameH;
+    /* 0x10 */ u32 imagePtr;
+    /* 0x14 */ u16 imageLoad;
+    /* 0x16 */ u8 imageFmt;
+    /* 0x17 */ u8 imageSiz;
+    /* 0x18 */ u16 imagePal;
+    /* 0x1A */ u16 imageFlip;
+    /* 0x1C */ u16 scaleW;
+    /* 0x1E */ u16 scaleH;
+    /* 0x20 */ s32 imageYorig;
+    /* 0x24 */ u8 padding[4];
+} __anon_0x5F05A; // size = 0x28
+
+typedef union __anon_0x5F2FB {
+    /* 0x0 */ struct __anon_0x5ED4F b;
+    /* 0x0 */ struct __anon_0x5F05A s;
+    /* 0x0 */ s64 force_structure_alignment;
+} __anon_0x5F2FB;
+
+bool rspFillObjBgScale(Rsp* pRSP, s32 nAddress, union __anon_0x5F2FB* pBg);
+bool rspPut32(Rsp* pRSP, u32 nAddress, s32* pData);
+bool rspGet32(Rsp* pRSP, u32 nAddress, s32* pData);
+bool rspInvalidateCache(Rsp* pRSP, s32 nOffset0, s32 nOffset1);
+bool rspEnableABI(Rsp* pRSP, bool bFlag);
+bool rspFrameComplete(Rsp* pRSP);
+bool rspUpdate(Rsp* pRSP, RspUpdateMode eMode);
+bool rspEvent(Rsp* pRSP, s32 nEvent, void* pArgument);
 
 extern _XL_OBJECTTYPE gClassRSP;
 

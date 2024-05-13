@@ -1,5 +1,3 @@
-WINDOWS := $(shell which wine ; echo $$?)
-
 NON_MATCHING := 0
 
 #-------------------------------------------------------------------------------
@@ -39,7 +37,7 @@ MWCC_VERSION := GC/1.1
 DOLPHIN_REVISION := 2003
 
 # Programs
-ifeq ($(WINDOWS),1)
+ifeq ($(OS),Windows_NT)
 	WINE := 
 else
 	UNAME_S := $(shell uname -s)
@@ -47,6 +45,8 @@ else
 		WINE := wibo
 	else ifeq ($(UNAME_S),Darwin)
 		WINE := wine
+	else
+		$(error Unknown OS: $(OS))
 	endif
 endif
 
@@ -62,6 +62,24 @@ LD := $(WINE) $(MWCC_DIR)/mwldeppc.exe
 DOLPHIN_MWCC_DIR := tools/mwcc_compiler/GC/1.2.5n
 DOLPHIN_CC := $(WINE) $(DOLPHIN_MWCC_DIR)/mwcceppc.exe
 
+CC_CHECK := gcc
+CC_CHECK_WARNINGS := \
+	-Wall \
+	-Wextra \
+	-Werror=strict-prototypes \
+	-Werror=implicit-function-declaration \
+	-Wno-cast-function-type \
+	-Wno-incompatible-pointer-types \
+	-Wno-pointer-to-int-cast \
+	-Wno-return-type \
+	-Wno-sequence-point \
+	-Wno-sign-compare \
+	-Wno-unknown-pragmas \
+	-Wno-unused-but-set-variable \
+	-Wno-unused-function \
+	-Wno-unused-parameter \
+	-Wno-unused-variable
+
 SHA1SUM := sha1sum
 PYTHON := python3
 ELF2DOL := tools/elf2dol/elf2dol
@@ -73,22 +91,15 @@ POSTPROC := tools/postprocess.py
 
 # Options
 INCLUDES := -Iinclude -Ilibc
-
-# Assembler Flags
 ASFLAGS := -mgekko -I include -I libc
-
-# Linker Flags
 LDFLAGS := -map $(MAP) -fp hardware -nodefaults -warn off
-
-# Compiler Flags
-CFLAGS := -Cpp_exceptions off -proc gekko -fp hardware -fp_contract on -enum int -O4,p -sym on -nodefaults -msgstyle gcc $(INCLUDES) -DDOLPHIN_REV=$(DOLPHIN_REVISION)
+CFLAGS := -Cpp_exceptions off -proc gekko -fp hardware -fp_contract on -enum int -align powerpc -nosyspath -RTTI off -str reuse -multibyte -O4,p -sym on -nodefaults -msgstyle gcc $(INCLUDES) -DDOLPHIN_REV=$(DOLPHIN_REVISION)
+INLINE_CFLAGS := -inline auto
+CC_CHECK_FLAGS := -fno-builtin -fsyntax-only -std=gnu99 -I include -I libc $(CC_CHECK_WARNINGS) -DNON_MATCHING -DDOLPHIN_REV=$(DOLPHIN_REVISION)
 
 ifneq ($(NON_MATCHING),0)
 	CFLAGS += -DNON_MATCHING
 endif
-
-DOLPHIN_CFLAGS := $(CFLAGS) -align powerpc -maxerrors 1 -nosyspath -RTTI off -str reuse -multibyte -inline auto
-EMULATOR_CFLAGS := $(CFLAGS) -inline auto,deferred
 
 # elf2dol needs to know these in order to calculate sbss correctly.
 SDATA_PDHR 	:= 9
@@ -128,7 +139,7 @@ distclean:
 	$(MAKE) -C tools clean
 
 format:
-	find include src -name '*.h' -o -name '*.c' | xargs clang-format -i
+	find include libc src -name '*.h' -o -name '*.c' | xargs clang-format -i
 
 # Note: this is meant for testing/modding purposes as a dol is easier to package and run than the original elf
 dol: all $(DOL)
@@ -148,11 +159,17 @@ $(ELF): $(O_FILES) ldscript.lcf
 $(DOL): $(ELF)
 	$(ELF2DOL) $< $@ $(SDATA_PDHR) $(SBSS_PDHR) $(TARGET_COL)
 
+$(BUILD_DIR)/src/dolphin/%.o: CC := $(DOLPHIN_CC)
+
+$(BUILD_DIR)/src/emulator/%.o: INLINE_CFLAGS := -inline auto,deferred
+$(BUILD_DIR)/src/emulator/THP%.o: INLINE_CFLAGS := -inline auto
+$(BUILD_DIR)/src/emulator/THPRead.o: INLINE_CFLAGS := -inline auto,deferred
+
 $(BUILD_DIR)/%.o: %.s
 	$(AS) $(ASFLAGS) -o $@ $<
 
-$(BUILD_DIR)/src/dolphin/%.o: src/dolphin/%.c
-	$(ASM_PROCESSOR) "$(DOLPHIN_CC) $(DOLPHIN_CFLAGS)" "$(AS) $(ASFLAGS)" $@ $<
-
-$(BUILD_DIR)/src/emulator/%.o: src/emulator/%.c
-	$(ASM_PROCESSOR) "$(CC) $(EMULATOR_CFLAGS)" "$(AS) $(ASFLAGS)" $@ $<
+$(BUILD_DIR)/%.o: %.c
+ifneq ($(CC_CHECK),)
+	$(CC_CHECK) $(CC_CHECK_FLAGS) $<
+endif
+	$(ASM_PROCESSOR) "$(CC) $(CFLAGS) $(INLINE_CFLAGS)" "$(AS) $(ASFLAGS)" $@ $<

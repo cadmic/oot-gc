@@ -53,10 +53,10 @@ typedef enum {
 #define OS_FONT_DATA_SIZE_SJIS 593636
 #define OS_FONT_ENCODE_VOID 0xFFFF
 
-#define OS_FONT_PROPORTIONAL FALSE
-#define OS_FONT_FIXED TRUE
+#define OS_FONT_PROPORTIONAL false
+#define OS_FONT_FIXED true
 
-u16 OSGetFontEncode();
+u16 OSGetFontEncode(void);
 
 #ifdef __cplusplus
 }

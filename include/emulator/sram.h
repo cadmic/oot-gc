@@ -9,7 +9,9 @@ typedef struct Sram {
     void* pHost; // 0x0
 } Sram;
 
-s32 sramEvent(Sram* pSram, s32 nEvent, void* pArgument);
+bool sramCopySRAM(Sram* pSRAM, s32 nOffsetRAM, s32 nOffsetSRAM, s32 nSize);
+bool sramTransferSRAM(Sram* pSRAM, s32 nOffsetRAM, s32 nOffsetSRAM, s32 nSize);
+bool sramEvent(Sram* pSram, s32 nEvent, void* pArgument);
 
 extern _XL_OBJECTTYPE gClassSram;
 

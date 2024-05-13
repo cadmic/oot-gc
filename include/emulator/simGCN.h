@@ -4,41 +4,6 @@
 #include "dolphin.h"
 #include "emulator/system.h"
 
-typedef struct __anon_0xD7D1 {
-    /* 0x00 */ u16 height;
-    /* 0x02 */ u16 width;
-    /* 0x04 */ u32 format;
-    /* 0x08 */ char* data;
-    /* 0x0C */ GXTexWrapMode wrapS;
-    /* 0x10 */ GXTexWrapMode wrapT;
-    /* 0x14 */ GXTexFilter minFilter;
-    /* 0x18 */ GXTexFilter magFilter;
-    /* 0x1C */ f32 LODBias;
-    /* 0x20 */ u8 edgeLODEnable;
-    /* 0x21 */ u8 minLOD;
-    /* 0x22 */ u8 maxLOD;
-    /* 0x23 */ u8 unpacked;
-} __anon_0xD7D1; // size = 0x24
-
-typedef struct __anon_0xDA2C {
-    /* 0x0 */ u16 numEntries;
-    /* 0x2 */ u8 unpacked;
-    /* 0x3 */ u8 pad8;
-    /* 0x4 */ GXTlutFmt format;
-    /* 0x8 */ char* data;
-} __anon_0xDA2C; // size = 0xC
-
-typedef struct __anon_0xDAF8 {
-    /* 0x0 */ __anon_0xD7D1* textureHeader;
-    /* 0x4 */ __anon_0xDA2C* CLUTHeader;
-} __anon_0xDAF8; // size = 0x8
-
-typedef struct __anon_0xDB69 {
-    /* 0x0 */ u32 versionNumber;
-    /* 0x4 */ u32 numDescriptors;
-    /* 0x8 */ __anon_0xDAF8* descriptorArray;
-} __anon_0xDB69; // size = 0xC
-
 typedef enum __anon_0x61D7 {
     S_M_NONE = -1,
     S_M_DISK_COVER_OPEN = 0,
@@ -105,8 +70,8 @@ typedef enum SimArgumentType {
     SAT_COUNT = 8
 } SimArgumentType;
 
-extern s32 gDVDResetToggle;
-extern s32 gbDisplayedError;
+extern bool gDVDResetToggle;
+extern bool gbDisplayedError;
 
 extern void* gpFrame;
 extern void* gpSound;
@@ -115,21 +80,47 @@ extern System* gpSystem;
 extern u32 gz_bnrSize;
 extern u32 gz_iconSize;
 
-void simulatorUnpackTexPalette(__anon_0xDB69* pal);
-s32 simulatorDVDOpen(char* szNameFile, DVDFileInfo* pFileInfo);
-s32 simulatorDVDRead(DVDFileInfo* pFileInfo, void* anData, s32 nSizeRead, s32 nOffset, DVDCallback callback);
-s32 simulatorShowLoad(s32 /* unknown */, char* szNameFile, f32 rProgress);
-s32 simulatorReadEEPROM(u8 address, u8* data);
-s32 simulatorWriteEEPROM(u8 address, u8* data);
-s32 simulatorReadSRAM(u32 address, u8* data, s32 size);
-s32 simulatorWriteSRAM(u32 address, u8* data, s32 size);
-s32 simulatorReadFLASH(u32 address, u8* data, s32 size);
-s32 simulatorWriteFLASH(u32 address, u8* data, s32 size);
-s32 simulatorCopyControllerMap(u32* mapDataOutput, u32* mapDataInput);
-s32 simulatorSetControllerMap(u32* mapData, s32 channel);
-void simulatorResetAndPlayMovie();
-s32 simulatorDVDShowError(s32 nStatus, void*, s32, u32);
-s32 simulatorGetArgument(SimArgumentType eType, char** pszArgument);
-s32 simulatorPlayMovie(void);
+extern u8 gcoverOpen[];
+extern u8 gnoDisk[];
+extern u8 gretryErr[];
+extern u8 gfatalErr[];
+extern u8 gwrongDisk[];
+extern u8 greadingDisk[];
+extern u8 gbar[];
+extern u8 gyes[];
+extern u8 yno[];
+extern u8 gmesgOK[];
+
+extern s16 Vert_s16[];
+extern u32 Colors_u32[];
+extern u8 TexCoords_u8[];
+
+extern char gpErrorMessageBuffer[20480];
+
+void simulatorUnpackTexPalette(TEXPalette* pal);
+bool simulatorDVDOpen(char* szNameFile, DVDFileInfo* pFileInfo);
+bool simulatorDVDRead(DVDFileInfo* pFileInfo, void* anData, s32 nSizeRead, s32 nOffset, DVDCallback callback);
+bool simulatorShowLoad(s32 unknown, char* szNameFile, f32 rProgress);
+bool simulatorReadEEPROM(u8 address, u8* data);
+bool simulatorWriteEEPROM(u8 address, u8* data);
+bool simulatorReadSRAM(u32 address, u8* data, s32 size);
+bool simulatorWriteSRAM(u32 address, u8* data, s32 size);
+bool simulatorReadFLASH(u32 address, u8* data, s32 size);
+bool simulatorWriteFLASH(u32 address, u8* data, s32 size);
+bool simulatorRumbleStart(s32 channel);
+bool simulatorRumbleStop(s32 channel);
+bool simulatorCopyControllerMap(u32* mapDataOutput, u32* mapDataInput);
+bool simulatorReadController(s32 channel, u32* anData, u8* ptx);
+bool simulatorDetectController(s32 channel);
+bool simulatorReadPak(s32 channel, u16 address, u8* data);
+bool simulatorWritePak(s32 channel, u16 address, u8* data);
+bool simulatorSetControllerMap(u32* mapData, s32 channel);
+void simulatorResetAndPlayMovie(void);
+bool simulatorDrawErrorMessage(__anon_0x61D7 simulatorErrorMessage, s32 drawBar, s32 percent);
+bool simulatorDVDShowError(s32 nStatus, void*, s32, u32);
+bool simulatorTestReset(bool IPL, bool forceMenu, bool allowReset, bool usePreviousSettings);
+bool simulatorGetArgument(SimArgumentType eType, char** pszArgument);
+bool simulatorPlayMovie(void);
+bool xlMain(void);
 
 #endif

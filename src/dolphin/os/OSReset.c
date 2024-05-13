@@ -1,8 +1,12 @@
 #include "dolphin/OSRtcPriv.h"
 #include "dolphin/hw_regs.h"
 #include "dolphin/os.h"
+#include "dolphin/pad.h"
 #include "dolphin/vi.h"
 #include "macros.h"
+
+extern void __OSReboot(u32 resetCode, u32 bootDol);
+extern void __OSStopAudioSystem(void);
 
 typedef struct OSResetQueue {
     OSResetFunctionInfo* first;
@@ -46,14 +50,14 @@ void OSRegisterResetFunction(OSResetFunctionInfo* func) {
     tmp->next = func;
 }
 
-inline BOOL __OSCallResetFunctions(u32 arg0) {
+static inline bool __OSCallResetFunctions(u32 arg0) {
     OSResetFunctionInfo* iter;
     s32 retCode = 0;
 
 #if DOLPHIN_REV == 2002
     for (iter = ResetFunctionQueue.first; iter != NULL; iter = iter->next)
 #else
-    for (iter = ResetFunctionQueue.first; iter != NULL && retCode == FALSE; iter = iter->next)
+    for (iter = ResetFunctionQueue.first; iter != NULL && retCode == false; iter = iter->next)
 #endif
     {
         retCode |= !iter->func(arg0);
@@ -73,9 +77,9 @@ lbl_80383140:
     mfspr r8, HID0
     ori r8, r8, 8
     mtspr HID0, r8
-    isync 
+    isync
     sync
-    nop 
+    nop
     b lbl_80383160
 lbl_8038315C:
     b lbl_8038317C
@@ -86,7 +90,7 @@ lbl_80383164:
     subf r7, r5, r6
     cmplwi r7, 0x1124
     blt lbl_80383164
-    nop 
+    nop
     b lbl_80383180
 lbl_8038317C:
     b lbl_8038319C
@@ -96,12 +100,12 @@ lbl_80383180:
     li r4, 3
     stw r4, 0x24(r8)
     stw r3, 0x24(r8)
-    nop 
+    nop
     b lbl_803831A0
 lbl_8038319C:
     b lbl_803831A8
 lbl_803831A0:
-    nop 
+    nop
     b lbl_803831A0
 lbl_803831A8:
     b lbl_80383140
@@ -134,9 +138,9 @@ void __OSDoHotReset(s32 arg0) {
     Reset(arg0 * 8);
 }
 
-void OSResetSystem(int reset, u32 resetCode, BOOL forceMenu) {
-    BOOL rc;
-    BOOL disableRecalibration;
+void OSResetSystem(int reset, u32 resetCode, bool forceMenu) {
+    bool rc;
+    bool disableRecalibration;
     u32 unk[3];
     OSDisableScheduler();
     __OSStopAudioSystem();
@@ -147,10 +151,10 @@ void OSResetSystem(int reset, u32 resetCode, BOOL forceMenu) {
     if (reset == OS_RESET_SHUTDOWN || (reset == OS_RESET_RESTART && bootThisDol != 0))
 #endif
     {
-        disableRecalibration = __PADDisableRecalibration(TRUE);
+        disableRecalibration = __PADDisableRecalibration(true);
     }
 
-    while (!__OSCallResetFunctions(FALSE))
+    while (!__OSCallResetFunctions(false))
         ;
 
     if (reset == OS_RESET_HOTRESET && forceMenu) {
@@ -158,14 +162,14 @@ void OSResetSystem(int reset, u32 resetCode, BOOL forceMenu) {
 
         sram = __OSLockSram();
         sram->flags |= 0x40;
-        __OSUnlockSram(TRUE);
+        __OSUnlockSram(true);
 
         while (!__OSSyncSram())
             ;
     }
 
     OSDisableInterrupts();
-    __OSCallResetFunctions(TRUE);
+    __OSCallResetFunctions(true);
     LCDisable();
 
     if (reset == OS_RESET_HOTRESET) {

@@ -1,4 +1,5 @@
 #include "dolphin/OSRtcPriv.h"
+#include "dolphin/exi.h"
 #include "dolphin/os.h"
 
 #define RTC_CMD_READ 0x20000000
@@ -14,35 +15,35 @@
 typedef struct SramControlBlock {
     u8 sram[RTC_SRAM_SIZE];
     u32 offset;
-    BOOL enabled;
-    BOOL locked;
-    BOOL sync;
+    bool enabled;
+    bool locked;
+    bool sync;
     void (*callback)(void);
 } SramControlBlock;
 
 static SramControlBlock Scb ATTRIBUTE_ALIGN(32);
 
 #if DOLPHIN_REV == 2003
-u16 OSGetGbsMode();
+u16 OSGetGbsMode(void);
 void OSSetGbsMode(u16 mode);
 #endif
 
-static inline BOOL ReadSram(void* buffer) {
-    BOOL err;
+static inline bool ReadSram(void* buffer) {
+    bool err;
     u32 cmd;
 
     DCInvalidateRange(buffer, RTC_SRAM_SIZE);
 
     if (!EXILock(RTC_CHAN, RTC_DEV, 0)) {
-        return FALSE;
+        return false;
     }
     if (!EXISelect(RTC_CHAN, RTC_DEV, RTC_FREQ)) {
         EXIUnlock(RTC_CHAN);
-        return FALSE;
+        return false;
     }
 
     cmd = RTC_CMD_READ | RTC_SRAM_ADDR;
-    err = FALSE;
+    err = false;
     err |= !EXIImm(RTC_CHAN, &cmd, 4, 1, NULL);
     err |= !EXISync(RTC_CHAN);
     err |= !EXIDma(RTC_CHAN, buffer, RTC_SRAM_SIZE, 0, NULL);
@@ -53,7 +54,7 @@ static inline BOOL ReadSram(void* buffer) {
     return !err;
 }
 
-BOOL WriteSram(void* buffer, u32 offset, u32 size);
+bool WriteSram(void* buffer, u32 offset, u32 size);
 static void WriteSramCallback(s32 chan, OSContext* context) {
     Scb.sync = WriteSram(Scb.sram + Scb.offset, Scb.offset, RTC_SRAM_SIZE - Scb.offset);
     if (Scb.sync) {
@@ -61,21 +62,21 @@ static void WriteSramCallback(s32 chan, OSContext* context) {
     }
 }
 
-BOOL WriteSram(void* buffer, u32 offset, u32 size) {
-    BOOL err;
+bool WriteSram(void* buffer, u32 offset, u32 size) {
+    bool err;
     u32 cmd;
 
     if (!EXILock(RTC_CHAN, RTC_DEV, WriteSramCallback)) {
-        return FALSE;
+        return false;
     }
     if (!EXISelect(RTC_CHAN, RTC_DEV, RTC_FREQ)) {
         EXIUnlock(RTC_CHAN);
-        return FALSE;
+        return false;
     }
 
     offset <<= 6;
-    cmd = RTC_CMD_WRITE | RTC_SRAM_ADDR + offset;
-    err = FALSE;
+    cmd = RTC_CMD_WRITE | (RTC_SRAM_ADDR + offset);
+    err = false;
     err |= !EXIImm(RTC_CHAN, &cmd, 4, 1, NULL);
     err |= !EXISync(RTC_CHAN);
     err |= !EXIImmEx(RTC_CHAN, buffer, (s32)size, 1);
@@ -85,8 +86,8 @@ BOOL WriteSram(void* buffer, u32 offset, u32 size) {
     return !err;
 }
 
-void __OSInitSram() {
-    Scb.locked = Scb.enabled = FALSE;
+void __OSInitSram(void) {
+    Scb.locked = Scb.enabled = false;
     Scb.sync = ReadSram(Scb.sram);
     Scb.offset = RTC_SRAM_SIZE;
 #if DOLPHIN_REV == 2003
@@ -95,25 +96,25 @@ void __OSInitSram() {
 }
 
 static inline void* LockSram(u32 offset) {
-    BOOL enabled;
+    bool enabled;
     enabled = OSDisableInterrupts();
 
-    if (Scb.locked != FALSE) {
+    if (Scb.locked != false) {
         OSRestoreInterrupts(enabled);
         return NULL;
     }
 
     Scb.enabled = enabled;
-    Scb.locked = TRUE;
+    Scb.locked = true;
 
     return Scb.sram + offset;
 }
 
-OSSram* __OSLockSram() { return LockSram(0); }
+OSSram* __OSLockSram(void) { return LockSram(0); }
 
-OSSramEx* __OSLockSramEx() { return LockSram(sizeof(OSSram)); }
+OSSramEx* __OSLockSramEx(void) { return LockSram(sizeof(OSSram)); }
 
-static BOOL UnlockSram(BOOL commit, u32 offset) {
+static bool UnlockSram(bool commit, u32 offset) {
     u16* p;
 
     if (commit) {
@@ -151,25 +152,25 @@ static BOOL UnlockSram(BOOL commit, u32 offset) {
             Scb.offset = RTC_SRAM_SIZE;
         }
     }
-    Scb.locked = FALSE;
+    Scb.locked = false;
     OSRestoreInterrupts(Scb.enabled);
     return Scb.sync;
 }
 
-BOOL __OSUnlockSram(BOOL commit) { return UnlockSram(commit, 0); }
+bool __OSUnlockSram(bool commit) { return UnlockSram(commit, 0); }
 
-BOOL __OSUnlockSramEx(BOOL commit) { return UnlockSram(commit, sizeof(OSSram)); }
+bool __OSUnlockSramEx(bool commit) { return UnlockSram(commit, sizeof(OSSram)); }
 
-BOOL __OSSyncSram() { return Scb.sync; }
+bool __OSSyncSram(void) { return Scb.sync; }
 
-inline OSSram* __OSLockSramHACK() { return LockSram(0); }
-u32 OSGetSoundMode() {
+static inline OSSram* __OSLockSramHACK(void) { return LockSram(0); }
+u32 OSGetSoundMode(void) {
     OSSram* sram;
     u32 mode;
 
     sram = __OSLockSramHACK();
     mode = (sram->flags & 0x4) ? OS_SOUND_MODE_STEREO : OS_SOUND_MODE_MONO;
-    __OSUnlockSram(FALSE);
+    __OSUnlockSram(false);
     return mode;
 }
 
@@ -180,13 +181,13 @@ void OSSetSoundMode(u32 mode) {
 
     sram = __OSLockSramHACK();
     if (mode == (sram->flags & 4)) {
-        __OSUnlockSram(FALSE);
+        __OSUnlockSram(false);
         return;
     }
 
     sram->flags &= ~4;
     sram->flags |= mode;
-    __OSUnlockSram(TRUE);
+    __OSUnlockSram(true);
 }
 
 u16 OSGetWirelessID(s32 channel) {
@@ -195,7 +196,7 @@ u16 OSGetWirelessID(s32 channel) {
 
     sram = __OSLockSramEx();
     id = sram->wirelessPadID[channel];
-    __OSUnlockSramEx(FALSE);
+    __OSUnlockSramEx(false);
     return id;
 }
 
@@ -205,21 +206,21 @@ void OSSetWirelessID(s32 channel, u16 id) {
     sram = __OSLockSramEx();
     if (sram->wirelessPadID[channel] != id) {
         sram->wirelessPadID[channel] = id;
-        __OSUnlockSramEx(TRUE);
+        __OSUnlockSramEx(true);
         return;
     }
 
-    __OSUnlockSramEx(FALSE);
+    __OSUnlockSramEx(false);
 }
 
 #if DOLPHIN_REV == 2003
-u16 OSGetGbsMode() {
+u16 OSGetGbsMode(void) {
     OSSramEx* sram;
     u16 id;
 
     sram = __OSLockSramEx();
     id = sram->gbs;
-    __OSUnlockSramEx(FALSE);
+    __OSUnlockSramEx(false);
     return id;
 }
 
@@ -233,11 +234,11 @@ void OSSetGbsMode(u16 mode) {
 
     sram = __OSLockSramEx();
     if (mode == sram->gbs) {
-        __OSUnlockSramEx(FALSE);
+        __OSUnlockSramEx(false);
         return;
     }
 
     sram->gbs = mode;
-    __OSUnlockSramEx(TRUE);
+    __OSUnlockSramEx(true);
 }
 #endif

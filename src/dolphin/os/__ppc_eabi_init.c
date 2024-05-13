@@ -6,10 +6,10 @@
 extern "C" {
 #endif
 
-void __OSPSInit();
-void __OSCacheInit();
+void __OSPSInit(void);
+void __OSCacheInit(void);
 
-ASM void __init_hardware(void) {
+ASM void __init_hardware(void){
 #ifdef __MWERKS__ // clang-format off
     nofralloc
     mfmsr r0
@@ -36,21 +36,21 @@ ASM void __flush_cache(register void* address, register unsigned int size) {
     subf r3, r5, r3
     add r4, r4, r3
 
-loop:    
+loop:
     dcbst r0, r5
     sync
     icbi r0, r5
     addic r5, r5, 8
-    subic. r4, r4, 8    
+    subic. r4, r4, 8
     bge loop
     isync
     blr
 #endif // clang-format on
 }
 
-void InitMetroTRK_BBA() { return; }
+void InitMetroTRK_BBA(void) { return; }
 
-void __init_user() { __init_cpp(); }
+void __init_user(void) { __init_cpp(); }
 
 typedef void (*voidfunctionptr)(void); // pointer to function returning void
 INIT extern voidfunctionptr _ctors[];
