@@ -13,6 +13,8 @@ int strcmp(const char* s1, const char* s2);
 int strncmp(const char* s1, const char* s2, size_t n);
 
 void* memchr(const void* p, int val, size_t n);
+char* strchr(const char* str, int character);
+
 void* memset(void* dst, int val, size_t n);
 
 size_t strlen(const char* s);

@@ -51,7 +51,7 @@ void* memchr(const void* src, int val, size_t n) {
     n++;
     while (--n) {
         if (*++p == v) {
-            return p;
+            return (void*)p;
         }
     }
 
