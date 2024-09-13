@@ -10,7 +10,11 @@
 
 extern OSThreadQueue __DVDThreadQueue;
 
+#if IS_MQ
+const char* __DVDVersion = "<< Dolphin SDK - DVD\trelease build: Sep  5 2002 05:34:06 (0x2301) >>";
+#else
 const char* __DVDVersion = "<< Dolphin SDK - DVD\trelease build: Jul 23 2003 11:27:57 (0x2301) >>";
+#endif
 
 static void AlarmHandler(OSAlarm* alarm, OSContext* context);
 static void cbForCancelSync(s32 result, DVDCommandBlock* block);
@@ -103,7 +107,7 @@ static void stateReadingFST() {
     LastState = (stateFunc)stateReadingFST;
 
     if (bootInfo->FSTMaxLength < BB2.FSTLength) {
-        OSPanic("dvd.c", 650, "DVDChangeDisk(): FST in the new disc is too big.   ");
+        OSPanic("dvd.c", IS_MQ ? 630 : 650, "DVDChangeDisk(): FST in the new disc is too big.   ");
     }
 
     DVDLowRead(bootInfo->FSTLocation, OSRoundUp32B(BB2.FSTLength), BB2.FSTPosition, cbForStateReadingFST);
@@ -149,8 +153,9 @@ static void cbForStateError(u32 intType) {
 
     if (Canceling) {
         Canceling = false;
-        if (CancelCallback)
+        if (CancelCallback) {
             (CancelCallback)(0, finished);
+        }
     }
 
     stateReady();
@@ -214,10 +219,12 @@ static inline bool CheckCancel(u32 resume) {
         executing = &DummyCommandBlock;
 
         finished->state = 10;
-        if (finished->callback)
+        if (finished->callback) {
             (*finished->callback)(-3, finished);
-        if (CancelCallback)
+        }
+        if (CancelCallback) {
             (CancelCallback)(0, finished);
+        }
         stateReady();
         return true;
     }
@@ -256,18 +263,20 @@ static void cbForStateGettingError(u32 intType) {
     if ((errorCategory == 2) || (errorCategory == 3)) {
         resume = 0;
     } else {
-        if (status == 0x01000000)
+        if (status == 0x01000000) {
             resume = 4;
-        else if (status == 0x02000000)
+        } else if (status == 0x02000000) {
             resume = 6;
-        else if (status == 0x03000000)
+        } else if (status == 0x03000000) {
             resume = 3;
-        else
+        } else {
             resume = 5;
+        }
     }
 
-    if (CheckCancel(resume))
+    if (CheckCancel(resume)) {
         return;
+    }
 
     if (errorCategory == 2) {
         __DVDStoreErrorCode(error);
@@ -559,6 +568,12 @@ void stateReady() {
 
     if (ResumeFromHere) {
         switch (ResumeFromHere) {
+#if IS_MQ
+            case 1:
+                executing->state = 1;
+                stateCoverClosed();
+                break;
+#endif
             case 2:
                 executing->state = 11;
                 stateMotorStopped();
@@ -573,7 +588,9 @@ void stateReady() {
                 executing->state = 5;
                 stateMotorStopped();
                 break;
+#if IS_CE
             case 1:
+#endif
             case 7:
             case 6:
                 executing->state = 3;
@@ -705,8 +722,9 @@ static inline bool IsImmCommandWithResult(u32 command) {
     }
 
     for (i = 0; i < sizeof(ImmCommand) / sizeof(ImmCommand[0]); i++) {
-        if (command == ImmCommand[i])
+        if (command == ImmCommand[i]) {
             return true;
+        }
     }
 
     return false;
@@ -717,12 +735,14 @@ static u32 DmaCommand[] = {0xFFFFFFFF};
 static inline bool IsDmaCommand(u32 command) {
     u32 i;
 
-    if (command == 1 || command == 4 || command == 5 || command == 14)
+    if (command == 1 || command == 4 || command == 5 || command == 14) {
         return true;
+    }
 
     for (i = 0; i < sizeof(DmaCommand) / sizeof(DmaCommand[0]); i++) {
-        if (command == DmaCommand[i])
+        if (command == DmaCommand[i]) {
             return true;
+        }
     }
 
     return false;
@@ -783,8 +803,9 @@ void cbForStateBusy(u32 p1) {
     if (p1 & 1) {
         NumInternalRetry = 0;
 
-        if (CheckCancel(0))
+        if (CheckCancel(0)) {
             return;
+        }
 
         if (IsDmaCommand(CurrCommand)) {
             if (executing->transferredSize != executing->length) {
@@ -1043,7 +1064,9 @@ void DVDResume() {
 bool DVDCancelAsync(DVDCommandBlock* block, DVDCBCallback callback) {
     bool enabled;
     DVDLowCallback old;
+#if IS_CE
     u32 tmp;
+#endif
 
     enabled = OSDisableInterrupts();
 
@@ -1051,8 +1074,9 @@ bool DVDCancelAsync(DVDCommandBlock* block, DVDCBCallback callback) {
         case -1:
         case 0:
         case 10:
-            if (callback)
+            if (callback) {
                 (*callback)(0, block);
+            }
             break;
 
         case 1:
@@ -1071,10 +1095,12 @@ bool DVDCancelAsync(DVDCommandBlock* block, DVDCBCallback callback) {
         case 2:
             __DVDDequeueWaitingQueue(block);
             block->state = 10;
-            if (block->callback)
+            if (block->callback) {
                 (block->callback)(-3, block);
-            if (callback)
+            }
+            if (callback) {
                 (*callback)(0, block);
+            }
             break;
 
         case 3:
@@ -1083,8 +1109,9 @@ bool DVDCancelAsync(DVDCommandBlock* block, DVDCBCallback callback) {
                 case 4:
                 case 13:
                 case 15:
-                    if (callback)
+                    if (callback) {
                         (*callback)(0, block);
+                    }
                     break;
 
                 default:
@@ -1109,18 +1136,26 @@ bool DVDCancelAsync(DVDCommandBlock* block, DVDCBCallback callback) {
                 return false;
             }
 
-            if (block->state == 4)
+            if (block->state == 4) {
                 ResumeFromHere = 3;
-            if (block->state == 5)
+            }
+            if (block->state == 5) {
                 ResumeFromHere = 4;
-            if (block->state == 6)
+            }
+            if (block->state == 6) {
                 ResumeFromHere = 1;
-            if (block->state == 11)
+            }
+            if (block->state == 11) {
                 ResumeFromHere = 2;
-            if (block->state == 7)
+            }
+            if (block->state == 7) {
                 ResumeFromHere = 7;
+            }
 
+#if IS_CE
             executing = &DummyCommandBlock;
+#endif
+
             block->state = 10;
             if (block->callback) {
                 (block->callback)(-3, block);
@@ -1186,12 +1221,13 @@ static inline bool DVDCancelAllAsync(DVDCBCallback callback) {
         DVDCancelAsync(p, NULL);
     }
 
-    if (executing)
+    if (executing) {
         retVal = DVDCancelAsync(executing, callback);
-    else {
+    } else {
         retVal = true;
-        if (callback)
+        if (callback) {
             (*callback)(0, NULL);
+        }
     }
 
     DVDResume();
@@ -1244,12 +1280,19 @@ bool DVDCheckDisk() {
         case 0:
         case 8:
             coverReg = __DIRegs[1];
+
             if (((coverReg >> 2) & 1) || (coverReg & 1)) {
                 result = false;
-            } else if (ResumeFromHere != 0) {
-                result = false;
             } else {
+#if IS_MQ
                 result = true;
+#else
+                if (ResumeFromHere != 0) {
+                    result = false;
+                } else {
+                    result = true;
+                }
+#endif
             }
     }
 

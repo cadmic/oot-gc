@@ -19,9 +19,7 @@ typedef struct DVDQueue DVDQueue;
 
 typedef void (*DVDCallback)(s32 result, DVDFileInfo* fileInfo);
 typedef void (*DVDCBCallback)(s32 result, DVDCommandBlock* block);
-typedef void (*DVDLowCallback)(u32 intType);
 typedef void (*DVDDoneReadCallback)(s32, DVDFileInfo*);
-typedef void (*DVDOptionalCommandChecker)(DVDCommandBlock* block, DVDLowCallback callback);
 
 struct DVDCommandBlock {
     /* 0x00 */ DVDCommandBlock* next;
@@ -82,6 +80,7 @@ bool DVDCheckDisk(void);
 DVDDiskID* DVDGetCurrentDiskID(void);
 bool DVDCompareDiskID(const DVDDiskID* discID1, const DVDDiskID* discID2);
 void __DVDLowSetWAType(u32 type, u32 location);
+bool DVDReadAbsAsyncForBS(DVDCommandBlock* block, void* addr, s32 length, s32 offset, DVDCBCallback callback);
 
 #define DVDReadAsync(fileInfo, addr, length, offset, callback) \
     DVDReadAsyncPrio((fileInfo), (addr), (length), (offset), (callback), 2)

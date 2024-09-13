@@ -49,7 +49,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--binutils",
-    metavar="BINARY",
+    metavar="DIR",
     type=Path,
     help="path to binutils (optional)",
 )
@@ -84,6 +84,12 @@ parser.add_argument(
     help="path to decomp-toolkit binary or source (optional)",
 )
 parser.add_argument(
+    "--objdiff",
+    metavar="BINARY | DIR",
+    type=Path,
+    help="path to objdiff-cli binary or source (optional)",
+)
+parser.add_argument(
     "--sjiswrap",
     metavar="EXE",
     type=Path,
@@ -100,18 +106,31 @@ args = parser.parse_args()
 ### Project configuration
 
 config = ProjectConfig()
-config.versions = [
+
+# Only configure versions for which main.dol exists
+ALL_VERSIONS = [
     "mq-j",
+    "mq-u",
+    "mq-e",
     "ce-j",
     "ce-u",
+    "ce-e",
 ]
-config.default_version = "ce-j"
+config.versions = [
+    version
+    for version in ALL_VERSIONS
+    if (Path("orig") / version / "main.dol").exists()
+]
+if "ce-j" in config.versions:
+    config.default_version = "ce-j"
+
 config.warn_missing_config = True
 config.warn_missing_source = False
 config.progress_all = False
 
 config.build_dir = args.build_dir
 config.dtk_path = args.dtk
+config.objdiff_path = args.objdiff
 config.binutils_path = args.binutils
 config.compilers_path = args.compilers
 config.generate_map = args.map
@@ -129,6 +148,7 @@ if args.no_asm:
 config.binutils_tag = "2.42-1"
 config.compilers_tag = "20231018"
 config.dtk_tag = "v0.8.3"
+config.objdiff_tag = "v2.0.0-beta.5"
 config.sjiswrap_tag = "v1.1.1"
 config.wibo_tag = "0.6.11"
 config.linker_version = "GC/1.1"
@@ -165,8 +185,6 @@ cflags_base = [
     "-sym on",
     "-i include",
     "-i libc",
-    # TODO: remove and use VERSION instead
-    "-DDOLPHIN_REV=2003",
 ]
 
 if config.non_matching:
@@ -192,11 +210,11 @@ def DolphinLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
         "objects": objects,
     }
 
-def GenericLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
+def GenericLib(lib_name: str, cflags: List[str], objects: List[Object]) -> Dict[str, Any]:
     return {
         "lib": lib_name,
         "mw_version": "GC/1.2.5",
-        "cflags": cflags_base,
+        "cflags": cflags,
         "host": False,
         "objects": objects,
     }
@@ -204,7 +222,7 @@ def GenericLib(lib_name: str, objects: List[Object]) -> Dict[str, Any]:
 ### Link order
 
 # Not matching for any version
-NonMatching = {}
+NonMatching: List[str] = []
 
 # Matching for all versions
 Matching = config.versions
@@ -217,41 +235,43 @@ config.libs = [
     EmulatorLib(
         "emulator",
         [
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlCoreGCN.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlPostGCN.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlFileGCN.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlList.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlHeap.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/xlObject.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/simGCN.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/movie.c"),
+            Object(Matching, "emulator/xlCoreGCN.c"),
+            Object(Matching, "emulator/xlPostGCN.c"),
+            Object(Matching, "emulator/xlFileGCN.c"),
+            Object(MatchingFor("mq-e", "ce-e"), "emulator/xlText.c"),
+            Object(Matching, "emulator/xlList.c"),
+            Object(Matching, "emulator/xlHeap.c"),
+            Object(MatchingFor("mq-e", "ce-e"), "emulator/xlFile.c"),
+            Object(Matching, "emulator/xlObject.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "emulator/simGCN.c"),
+            Object(Matching, "emulator/movie.c"),
             # THP files except for THPRead.c do not have -inline deferred
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/THPPlayer.c", cflags=cflags_base),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/THPAudioDecode.c", cflags=cflags_base),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/THPDraw.c", cflags=cflags_base),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/THPRead.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/THPVideoDecode.c", cflags=cflags_base),
+            Object(Matching, "emulator/THPPlayer.c", cflags=cflags_base),
+            Object(Matching, "emulator/THPAudioDecode.c", cflags=cflags_base),
+            Object(Matching, "emulator/THPDraw.c", cflags=cflags_base),
+            Object(Matching, "emulator/THPRead.c"),
+            Object(Matching, "emulator/THPVideoDecode.c", cflags=cflags_base),
             Object(MatchingFor("ce-j"), "emulator/mcardGCN.c", asm_processor=True),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/codeGCN.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/soundGCN.c"),
+            Object(Matching, "emulator/codeGCN.c"),
+            Object(Matching, "emulator/soundGCN.c"),
             Object(MatchingFor("ce-j"), "emulator/frame.c", asm_processor=True),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/system.c"),
+            Object(Matching, "emulator/system.c"),
             Object(MatchingFor("ce-j"), "emulator/cpu.c", asm_processor=True),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/pif.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/ram.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/rom.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/rdp.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/rdb.c"),
+            Object(Matching, "emulator/pif.c"),
+            Object(Matching, "emulator/ram.c"),
+            Object(Matching, "emulator/rom.c"),
+            Object(Matching, "emulator/rdp.c"),
+            Object(Matching, "emulator/rdb.c"),
             Object(MatchingFor("ce-j"), "emulator/rsp.c", asm_processor=True),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/mips.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/disk.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/flash.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/sram.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/audio.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/video.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/serial.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/library.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "emulator/peripheral.c"),
+            Object(Matching, "emulator/mips.c"),
+            Object(Matching, "emulator/disk.c"),
+            Object(Matching, "emulator/flash.c"),
+            Object(Matching, "emulator/sram.c"),
+            Object(Matching, "emulator/audio.c"),
+            Object(Matching, "emulator/video.c"),
+            Object(Matching, "emulator/serial.c"),
+            Object(Matching, "emulator/library.c"),
+            Object(Matching, "emulator/peripheral.c"),
             Object(MatchingFor("ce-j"), "emulator/_frameGCNcc.c", asm_processor=True),
             Object(MatchingFor("ce-j"), "emulator/_buildtev.c", asm_processor=True),
         ],
@@ -259,174 +279,175 @@ config.libs = [
     DolphinLib(
         "base",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/base/PPCArch.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/base/PPCArch.c"),
         ],
     ),
     DolphinLib(
         "os",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OS.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSAlarm.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSAlloc.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSArena.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSAudioSystem.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSCache.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSContext.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSError.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSFont.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSInterrupt.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSLink.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSMessage.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSMemory.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSMutex.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSReboot.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSReset.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSResetSW.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSRtc.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSSync.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSThread.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/OSTime.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/__start.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/os/__ppc_eabi_init.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OS.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSAlarm.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSAlloc.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSArena.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSAudioSystem.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSCache.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSContext.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSError.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSFont.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSInterrupt.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSLink.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSMessage.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSMemory.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSMutex.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSReboot.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSReset.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSResetSW.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSRtc.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSSync.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSThread.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/OSTime.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/__start.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/os/__ppc_eabi_init.c"),
         ],
     ),
     DolphinLib(
         "exi",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/exi/EXIBios.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/exi/EXIUart.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/exi/EXIBios.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/exi/EXIUart.c"),
         ],
     ),
     DolphinLib(
         "si",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/si/SIBios.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/si/SISamplingRate.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/si/SIBios.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/si/SISamplingRate.c"),
         ],
     ),
     DolphinLib(
         "vi",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/vi/vi.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/vi/vi.c"),
         ],
     ),
     DolphinLib(
         "db",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/db/db.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/db/db.c"),
         ],
     ),
     DolphinLib(
         "mtx",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/mtx/mtx.c", extra_cflags=["-fp_contract off"]),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/mtx/mtxvec.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/mtx/mtx44.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/mtx/mtx.c", extra_cflags=["-fp_contract off"]),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/mtx/mtxvec.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/mtx/mtx44.c"),
         ],
     ),
     DolphinLib(
         "gx",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXInit.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXFifo.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXAttr.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXMisc.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXGeometry.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXFrameBuf.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXInit.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXFifo.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXAttr.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXMisc.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXGeometry.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXFrameBuf.c"),
             Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXLight.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXTexture.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXBump.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXTev.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXPixel.c", extra_cflags=["-fp_contract off"]),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXTransform.c", extra_cflags=["-fp_contract off"]),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/gx/GXPerf.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXTexture.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXBump.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXTev.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXPixel.c", extra_cflags=["-fp_contract off"]),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXTransform.c", extra_cflags=["-fp_contract off"]),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/gx/GXPerf.c"),
         ],
     ),
     DolphinLib(
         "pad",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/pad/Padclamp.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/pad/Pad.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/pad/Padclamp.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/pad/Pad.c"),
         ],
     ),
     DolphinLib(
         "dvd",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvdlow.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvdfs.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvd.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvdqueue.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvderror.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvdidutils.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/dvdFatal.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dvd/fstload.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvdlow.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvdfs.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvd.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvdqueue.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvderror.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvdidutils.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/dvdFatal.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dvd/fstload.c"),
         ],
     ),
     DolphinLib(
         "demo",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/demo/DEMOInit.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/demo/DEMOPuts.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/demo/DEMOFont.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/demo/DEMOPad.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/demo/DEMOStats.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/demo/DEMOInit.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/demo/DEMOPuts.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/demo/DEMOFont.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/demo/DEMOPad.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/demo/DEMOStats.c"),
         ],
     ),
     DolphinLib(
         "ai",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/ai/ai.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/ai/ai.c"),
         ],
     ),
     DolphinLib(
         "ar",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/ar/ar.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/ar/ar.c"),
         ],
     ),
     DolphinLib(
         "dsp",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dsp/dsp.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dsp/dsp_debug.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/dsp/dsp_task.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dsp/dsp.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dsp/dsp_debug.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/dsp/dsp_task.c"),
         ],
     ),
     DolphinLib(
         "card",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDBios.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDUnlock.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDRdwr.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDBlock.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDDir.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDCheck.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDMount.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDFormat.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDOpen.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDCreate.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDRead.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDWrite.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDDelete.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDStat.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/card/CARDNet.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDBios.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDUnlock.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDRdwr.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDBlock.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDDir.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDCheck.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDMount.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDFormat.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDOpen.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDCreate.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDRead.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDWrite.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDDelete.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDStat.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/card/CARDNet.c"),
         ],
     ),
     DolphinLib(
         "thp",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/thp/THPDec.c"),
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/thp/THPAudio.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/thp/THPDec.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/thp/THPAudio.c"),
         ],
     ),
     DolphinLib(
         "tex",
         [
-            Object(MatchingFor("ce-j", "ce-u"), "dolphin/tex/texPalette.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "dolphin/tex/texPalette.c"),
         ],
     ),
     GenericLib(
         "metrotrk",
+        cflags_base,
         [
             Object(NonMatching, "metrotrk/mainloop.c"),
             Object(NonMatching, "metrotrk/nubevent.c"),
@@ -453,57 +474,60 @@ config.libs = [
     ),
     GenericLib(
         "runtime",
+        [*cflags_base, "-inline deferred"],
         [
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "runtime/__mem.c"),
-            Object(NonMatching, "runtime/__va_arg.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "runtime/global_destructor_chain.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "runtime/runtime.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "runtime/__mem.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "runtime/__va_arg.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "runtime/global_destructor_chain.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "runtime/runtime.c"),
         ]
     ),
     GenericLib(
         "libc",
+        [*cflags_base, "-inline deferred"],
         [
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/abort_exit.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/ansi_files.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/abort_exit.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/ansi_files.c"),
             Object(NonMatching, "libc/ansi_fp.c", extra_cflags=["-inline noauto"]),
-            Object(NonMatching, "libc/buffer_io.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/critical_regions.ppc_eabi.c"),
-            Object(NonMatching, "libc/ctype.c"),
-            Object(NonMatching, "libc/direct_io.c"),
-            Object(NonMatching, "libc/errno.c"),
-            Object(NonMatching, "libc/mbstring.c", extra_cflags=["-inline noauto"]),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/buffer_io.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/critical_regions.ppc_eabi.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/ctype.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/direct_io.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/errno.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/mbstring.c"),
             Object(NonMatching, "libc/mem.c"),
             Object(NonMatching, "libc/mem_funcs.c"),
-            Object(NonMatching, "libc/misc_io.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/misc_io.c"),
             Object(NonMatching, "libc/printf.c"),
             Object(NonMatching, "libc/scanf.c"),
             Object(NonMatching, "libc/string.c"),
             Object(NonMatching, "libc/strtoul.c"),
-            Object(NonMatching, "libc/uart_console_io.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/float.c"),
-            Object(NonMatching, "libc/wchar_io.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/e_asin.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/e_pow.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/fminmaxdim.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/s_ceil.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/s_copysign.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/s_floor.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/s_frexp.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/s_ldexp.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/w_pow.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/hyperbolicsf.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/log10f.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/trigf.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/math_inlines.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "libc/common_float_tables.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/uart_console_io.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/float.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/wchar_io.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/e_asin.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/e_pow.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/fminmaxdim.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/s_ceil.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/s_copysign.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/s_floor.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/s_frexp.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/s_ldexp.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/w_pow.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/hyperbolicsf.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/log10f.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/trigf.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/math_inlines.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "libc/common_float_tables.c"),
         ]
     ),
     GenericLib(
         "debugger",
+        cflags_base,
         [
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "debugger/AmcExi2Stubs.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "debugger/AmcExi2Stubs.c"),
             Object(NonMatching, "debugger/DebuggerDriver.c"),
-            Object(MatchingFor("mq-j", "ce-j", "ce-u"), "debugger/odenotstub.c"),
+            Object(MatchingFor("mq-j", "mq-u", "ce-j", "ce-u"), "debugger/odenotstub.c"),
         ]
     ),
 ]

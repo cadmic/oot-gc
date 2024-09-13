@@ -8,6 +8,11 @@
 #define CE_J 4
 #define CE_U 5
 #define CE_E 6
+#define IS_MQ (VERSION == MQ_J || VERSION == MQ_U || VERSION == MQ_E)
+#define IS_CE (VERSION == CE_J || VERSION == CE_U || VERSION == CE_E)
+#define IS_JP (VERSION == MQ_J || VERSION == CE_J)
+#define IS_US (VERSION == MQ_U || VERSION == CE_U)
+#define IS_EU (VERSION == MQ_E || VERSION == CE_E)
 
 #define ALIGN_PREV(X, N) ((X) & ~((N) - 1))
 #define ALIGN_NEXT(X, N) ALIGN_PREV(((X) + (N) - 1), N)
@@ -45,39 +50,19 @@ inline void padStack(void) { int pad = 0; }
 #define PAD_STACK() padStack()
 
 #ifdef __MWERKS__
+#define AT_ADDRESS(xyz) : (xyz)
+#define DECL_SECTION(x) __declspec(section x)
+#define WEAK __declspec(weak)
 #define ASM asm
 #else
+#define AT_ADDRESS(xyz)
+#define DECL_SECTION(x)
+#define WEAK
 #define ASM
 #endif
 
-#ifdef __MWERKS__
-#define WEAK __declspec(weak)
-#else
-#define WEAK
-#endif
-
-#ifdef __MWERKS__
-#define INIT __declspec(section ".init")
-#else
-#define INIT
-#endif
-
-#ifdef __MWERKS__
-#define CTORS __declspec(section ".ctors")
-#else
-#define CTORS
-#endif
-
-#ifdef __MWERKS__
-#define DTORS __declspec(section ".dtors")
-#else
-#define DTORS
-#endif
-
-#ifdef __MWERKS__
-#define AT_ADDRESS(xyz) : (xyz)
-#else
-#define AT_ADDRESS(xyz)
-#endif
+#define INIT DECL_SECTION(".init")
+#define CTORS DECL_SECTION(".ctors")
+#define DTORS DECL_SECTION(".dtors")
 
 #endif

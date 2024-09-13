@@ -81,7 +81,7 @@ void __OSEnableBarnacle(s32 chan, u32 dev) {
     }
 }
 
-u32 InitializeUART(u32 baudRate) {
+s32 InitializeUART(u32 baudRate) {
     if (BarnacleEnabled == EXI_MAGIC) {
         return 0;
     }
@@ -97,13 +97,14 @@ u32 InitializeUART(u32 baudRate) {
     }
 }
 
-u32 ReadUARTN(void* bytes, unsigned long length) { return 4; }
+s32 ReadUARTN(void* buf, u32 len) { return 4; }
 
 static inline int QueueLength(void) {
     u32 cmd;
 
-    if (!EXISelect(Chan, Dev, EXI_FREQ_8M))
+    if (!EXISelect(Chan, Dev, EXI_FREQ_8M)) {
         return -1;
+    }
 
     cmd = EXI_TX << 6;
     EXIImm(Chan, &cmd, 4, EXI_WRITE, NULL);
@@ -116,35 +117,39 @@ static inline int QueueLength(void) {
     return 16 - (int)((cmd >> 24) & 0xFF);
 }
 
-u32 WriteUARTN(const void* buf, unsigned long len) {
+s32 WriteUARTN(const void* buf, u32 len) {
     u32 cmd;
-#if VERSION > MQ_E
+#if IS_CE
     bool interrupt;
 #endif
     int qLen;
     long xLen;
     char* ptr;
     bool locked;
-    u32 error;
+    s32 error;
 
-    if (Enabled != EXI_MAGIC)
+    if (Enabled != EXI_MAGIC) {
         return 2;
+    }
 
-#if VERSION > MQ_E
+#if IS_CE
     interrupt = OSDisableInterrupts();
 #endif
 
     locked = EXILock(Chan, Dev, 0);
     if (!locked) {
-#if VERSION > MQ_E
+
+#if IS_CE
         OSRestoreInterrupts(interrupt);
 #endif
+
         return 0;
     }
 
     for (ptr = (char*)buf; ptr - (char*)buf < len; ptr++) {
-        if (*ptr == '\n')
+        if (*ptr == '\n') {
             *ptr = '\r';
+        }
     }
 
     error = 0;
@@ -156,8 +161,9 @@ u32 WriteUARTN(const void* buf, unsigned long len) {
             break;
         }
 
-        if (qLen < 12 && qLen < len)
+        if (qLen < 12 && qLen < len) {
             continue;
+        }
 
         if (!EXISelect(Chan, Dev, EXI_FREQ_8M)) {
             error = 3;
@@ -168,8 +174,9 @@ u32 WriteUARTN(const void* buf, unsigned long len) {
         EXISync(Chan);
 
         while (qLen && len) {
-            if (qLen < 4 && qLen < len)
+            if (qLen < 4 && qLen < len) {
                 break;
+            }
             xLen = (len < 4) ? (long)len : 4;
             EXIImm(Chan, (void*)buf, xLen, EXI_WRITE, NULL);
             buf = (void*)((u8*)buf + xLen);
@@ -182,8 +189,9 @@ u32 WriteUARTN(const void* buf, unsigned long len) {
 
     EXIUnlock(Chan);
 
-#if VERSION > MQ_E
+#if IS_CE
     OSRestoreInterrupts(interrupt);
 #endif
+
     return error;
 }
