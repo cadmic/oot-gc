@@ -57,7 +57,7 @@ def find_elf_section(f: BinaryIO, section_name: str) -> tuple[int, int] | None:
     return None
 
 
-def read_line_numbers(elf_file: Path, start_address) -> list[tuple[int, int]]:
+def read_line_numbers(elf_file: Path) -> list[tuple[int, int]]:
     line_numbers = []
     with open(elf_file, "rb") as f:
         section = find_elf_section(f, ".line")
@@ -72,15 +72,13 @@ def read_line_numbers(elf_file: Path, start_address) -> list[tuple[int, int]]:
             length = int.from_bytes(f.read(4), byteorder="big")
             address = int.from_bytes(f.read(4), byteorder="big")
 
-            if address != start_address:
-                f.seek(start + length)
-                continue
-
             while f.tell() < start + length:
                 line_info = f.read(10)
                 line = int.from_bytes(line_info[0:4], byteorder="big")
                 delta = int.from_bytes(line_info[6:10], byteorder="big")
-                line_numbers.append((delta, line))
+                if line == 0:
+                    continue
+                line_numbers.append((address + delta, line))
 
     return line_numbers
 
@@ -89,13 +87,12 @@ def main(objdump_args: list[str]):
     object_file = Path(objdump_args[-1])
     c_file = object_file.with_suffix(".c").name
 
+    start_address = None
     line_numbers = []
     if object_file.parts[0] == "expected":
         start_address = find_start_address_from_map_file(object_file.name)
         if start_address is not None:
-            line_numbers = read_line_numbers(Path(ORIGINAL_ELF_FILE), start_address)
-    else:
-        line_numbers = read_line_numbers(object_file, 0)
+            line_numbers = read_line_numbers(Path(ORIGINAL_ELF_FILE))
 
     p = subprocess.Popen(
         [OBJDUMP_EXECUTABLE] + objdump_args, stdout=subprocess.PIPE, encoding="utf-8"
@@ -103,14 +100,18 @@ def main(objdump_args: list[str]):
     assert p.stdout is not None
 
     next_entry = 0
+    while next_entry < len(line_numbers) and line_numbers[next_entry][0] < start_address:
+        next_entry += 1
+
     pattern = re.compile(r"^\s+([0-9a-f]+):")
     for line in p.stdout:
-        match = pattern.match(line)
-        if match:
-            delta = int(match[1], 16)
-            if next_entry < len(line_numbers) and line_numbers[next_entry][0] == delta:
-                print(f"{c_file}:{line_numbers[next_entry][1]}")
-                next_entry += 1
+        if start_address is not None:
+            match = pattern.match(line)
+            if match:
+                address = start_address + int(match[1], 16)
+                if next_entry < len(line_numbers) and line_numbers[next_entry][0] == address:
+                    print(f"{c_file}:{line_numbers[next_entry][1]}")
+                    next_entry += 1
         print(line, end="")
 
     p.wait()
