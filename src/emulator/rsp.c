@@ -2409,22 +2409,31 @@ static bool rspInitAudioDMEM4(Rsp* pRSP) {
 
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspParseABI4.s")
 
+static s32 rspCreateJPEGArrays(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspCreateJPEGArrays.s")
 
+static void rspConvertRGBAtoYUV(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspConvertRGBAtoYUV.s")
 
+static void rspYUVtoDCTBuf(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspYUVtoDCTBuf.s")
 
+static void rspDCT(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspDCT.s")
 
+static void rspQuantize(Rsp* pRSP, s32 scale);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspQuantize.s")
 
+void rspUndoQuantize(Rsp* pRSP, s32 scale);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoQuantize.s")
 
+void rspUndoDCT(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoDCT.s")
 
+void rspUndoYUVtoDCTBuf(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoYUVtoDCTBuf.s")
 
+void rspFormatYUV(Rsp* pRSP, char* imgBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspFormatYUV.s")
 
 static bool rspParseJPEG_Encode(Rsp* pRSP, RspTask* pTask);
@@ -2433,24 +2442,34 @@ static bool rspParseJPEG_Encode(Rsp* pRSP, RspTask* pTask);
 static bool rspParseJPEG_Decode(Rsp* pRSP, RspTask* pTask);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspParseJPEG_Decode.s")
 
+static bool rspCreateJPEGArraysZ(Rsp* pRSP, s32 qYAddress, s32 qCbAddress, s32 qCrAddress);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspCreateJPEGArraysZ.s")
 
+static void rspDCTZ(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspDCTZ.s")
 
+static void rspQuantizeZ(Rsp* pRSP, s16* dataBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspQuantizeZ.s")
 
+void rspZigzagDataZ(Rsp* pRSP, s16* dataBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspZigzagDataZ.s")
 
+void rspUndoQuantizeZ(Rsp* pRSP, s16* dataBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoQuantizeZ.s")
 
+void rspUndoZigzagDataZ(Rsp* pRSP, s16* dataBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoZigzagDataZ.s")
 
+void rspUndoDCTZ(Rsp* pRSP);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoDCTZ.s")
 
+bool rspUndoLoadColorBufferZ(Rsp* pRSP, s32 r, s32 g, s32 b, s16* imgBuf, s32 index);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoLoadColorBufferZ.s")
 
+bool rspUndoRecon420Z(Rsp* pRSP, s16* imgBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspUndoRecon420Z.s")
 
+bool rspRecon420Z(Rsp* pRSP, s16* imgBuf);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspRecon420Z.s")
 
 static bool rspParseJPEG_EncodeZ(Rsp* pRSP, RspTask* pTask) {
