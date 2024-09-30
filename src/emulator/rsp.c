@@ -137,8 +137,20 @@ static s32 nFirstTime_2648 = 0x00000001;
 static s32 nFirstTime_2757 = 0x00000001;
 static s32 nFirstTime_2796 = 0x00000001;
 
+static s32 counter;
+static u16 scissorX0;
+static u16 scissorY0;
 static u16 scissorX1 = 0x500;
 static u16 scissorY1 = 0x3C0;
+static u8 flagBilerp;
+static u32 rdpSetTimg_w0;
+static u32 rdpSetTile_w0;
+static u16 tmemSliceWmax;
+static u16 imageSrcWsize;
+static u16 flagSplit;
+static u16 imagePtrX0;
+static u32 imageTop;
+static s16 tmemSrcLines;
 
 static s16 TMEMMASK[4] = {
     0x01FF,
@@ -153,19 +165,6 @@ static s16 TMEMSHIFT[4] = {
     0x0080,
     0x0040,
 };
-
-static s32 counter;
-static u16 scissorX0;
-static u16 scissorY0;
-static u8 flagBilerp;
-static u32 rdpSetTimg_w0;
-static u32 rdpSetTile_w0;
-static u16 tmemSliceWmax;
-static u16 imageSrcWsize;
-static u16 flagSplit;
-static u16 imagePtrX0;
-static s32 imageTop;
-static u16 tmemSrcLines;
 
 const f32 D_80136038 = 0.25f;
 const f32 D_8013603C = 1024.0f;
@@ -2719,12 +2718,17 @@ static bool tmemLoad_A(Frame* pFrame, Rsp* pRSP, s32 imagePtr, s16 loadLines, s1
     return true;
 }
 
+static bool tmemLoad(Frame* pFrame, Rsp* pRSP, u32* imagePtr, s16* imageRemain,
+                    s16 drawLines, s16 flagBilerp);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/tmemLoad.s")
 
+static bool guS2DEmuBgRect1Cyc(Rsp* pRSP, Frame* pFrame, __anon_0x5F2FB* pBG) ;
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/guS2DEmuBgRect1Cyc.s")
 
+bool rspFillObjTxtr(Rsp* pRSP, s32 nAddress, union __anon_0x5FC1B* pTxtr, u32* pLoadType);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspFillObjTxtr.s")
 
+static bool rspObjLoadTxtr(Rsp* pRSP, Frame* pFrame, s32 nAddress);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspObjLoadTxtr.s")
 
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspObjRectangle.s")
@@ -2735,6 +2739,7 @@ static bool tmemLoad_A(Frame* pFrame, Rsp* pRSP, s32 imagePtr, s16 loadLines, s1
 
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspBgRectCopy.s")
 
+bool rspObjMatrix(Rsp* pRSP, Frame* pFrame, s32 nAddress);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspObjMatrix.s")
 
 static bool rspSetupS2DEX(Rsp* pRSP);
