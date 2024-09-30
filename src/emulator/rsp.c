@@ -2718,12 +2718,298 @@ static bool tmemLoad_A(Frame* pFrame, Rsp* pRSP, s32 imagePtr, s16 loadLines, s1
     return true;
 }
 
-static bool tmemLoad(Frame* pFrame, Rsp* pRSP, u32* imagePtr, s16* imageRemain,
-                    s16 drawLines, s16 flagBilerp);
+static bool tmemLoad(Frame* pFrame, Rsp* pRSP, u32* imagePtr, s16* imageRemain, s16 drawLines, s16 flagBilerp);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/tmemLoad.s")
 
-static bool guS2DEmuBgRect1Cyc(Rsp* pRSP, Frame* pFrame, __anon_0x5F2FB* pBG) ;
-#pragma GLOBAL_ASM("asm/non_matchings/rsp/guS2DEmuBgRect1Cyc.s")
+// https://github.com/decompals/ultralib/blob/1616482098e51d2e1906e198bf1bde14e8fc5e90/src/gu/us2dex_emu.c#L177
+bool guS2DEmuBgRect1Cyc(Rsp* pRSP, Frame* pFrame, __anon_0x5F2FB* pBG) {
+    s16 frameX0, frameX1, framePtrY0, frameRemain;
+    s16 imageX0, imageY0, imageSliceW, imageW;
+    s32 imageYorig;
+    s16 scaleW, scaleH;
+
+    s16 imageSrcW, imageSrcH;
+    s16 tmemSliceLines, imageSliceLines;
+    s32 frameSliceLines, frameSliceCount;
+    u16 imageS, imageT;
+    u32 imagePtr;
+
+    s16 imageISliceL0, imageIY0;
+    s32 frameLSliceL0;
+
+    scaleW = pBG->s.scaleW;
+    scaleH = pBG->s.scaleH;
+
+    {
+        s16 pixX0, pixY0, pixX1, pixY1;
+        s16 frameY0, frameW, frameH;
+        s32 frameWmax, frameHmax;
+
+        frameWmax = (((pBG->s.imageW << 10) / scaleW) - 1) & ~3;
+        frameHmax = (((pBG->s.imageH << 10) / scaleH) - 1) & ~3;
+
+        frameW = pBG->s.frameW;
+        frameH = pBG->s.frameH;
+        frameX0 = pBG->s.frameX;
+        frameY0 = pBG->s.frameY;
+
+        if ((frameWmax = pBG->s.frameW - frameWmax) < 0) {
+            frameWmax = 0;
+        }
+        if ((frameHmax = pBG->s.frameH - frameHmax) < 0) {
+            frameHmax = 0;
+        }
+
+        // TODO: fake casts?
+        frameW -= (s16)frameWmax;
+        frameH -= (s16)frameHmax;
+
+        if (pBG->s.imageFlip & 1) {
+            frameX0 += (s16)frameWmax;
+        }
+
+        pixX0 = scissorX0 - frameX0;
+        pixY0 = scissorY0 - frameY0;
+        pixX1 = frameW - scissorX1 + frameX0;
+        pixY1 = frameH - scissorY1 + frameY0;
+
+        if (pixX0 < 0) {
+            pixX0 = 0;
+        }
+        if (pixY0 < 0) {
+            pixY0 = 0;
+        }
+        if (pixX1 < 0) {
+            pixX1 = 0;
+        }
+        if (pixY1 < 0) {
+            pixY1 = 0;
+        }
+
+        frameW = frameW - (pixX0 + pixX1);
+        frameH = frameH - (pixY0 + pixY1);
+        frameX0 = frameX0 + pixX0;
+        frameY0 = frameY0 + pixY0;
+
+        if (frameW <= 0 || frameH <= 0) {
+            return true;
+        }
+
+        frameX1 = frameX0 + frameW;
+        framePtrY0 = frameY0 >> 2;
+        frameRemain = frameH >> 2;
+
+        imageSrcW = pBG->s.imageW << 3;
+        imageSrcH = pBG->s.imageH << 3;
+
+        imageW = frameW * scaleW >> 7;
+        imageSliceW = imageW + (flagBilerp << 5);
+        if (pBG->s.imageFlip & 1) {
+            imageX0 = pBG->s.imageX + (pixX1 * scaleW >> 7);
+        } else {
+            imageX0 = pBG->s.imageX + (pixX0 * scaleW >> 7);
+        }
+        imageY0 = pBG->s.imageY + (pixY0 * scaleH >> 7);
+        imageYorig = pBG->s.imageYorig;
+
+        while (imageX0 >= imageSrcW) {
+            imageX0 -= imageSrcW;
+            imageY0 += 32;
+            imageYorig += 32;
+        }
+
+        while (imageY0 >= imageSrcH) {
+            imageY0 -= imageSrcH;
+            imageYorig -= imageSrcH;
+        }
+    }
+
+    {
+        flagSplit = (imageX0 + imageSliceW >= imageSrcW);
+        tmemSrcLines = imageSrcH >> 5;
+    }
+
+    {
+        s16 tmemSize, tmemMask, tmemShift;
+        s32 imageNumSlice;
+        s32 imageSliceWmax;
+        s32 imageLYoffset, frameLYoffset;
+        s32 imageLHidden, frameLHidden;
+        s32 frameLYslice;
+        // TODO: make in-function static
+        // static s16 TMEMSIZE[] = { 512, 512, 256, 512, 512 };
+        // static s16 TMEMMASK[] = { 0x1FF, 0xFF, 0x7F, 0x3F };
+        // static s16 TMEMSHIFT[] = { 0x200, 0x100, 0x80, 0x40 };
+
+        tmemSize = TMEMSIZE[pBG->s.imageFmt];
+        tmemMask = TMEMMASK[pBG->s.imageSiz];
+        tmemShift = TMEMSHIFT[pBG->s.imageSiz];
+
+        imageSliceWmax = ((pBG->s.frameW * scaleW) >> 7) + (flagBilerp << 5);
+        if (imageSliceWmax > imageSrcW) {
+            imageSliceWmax = imageSrcW;
+        }
+
+        tmemSliceWmax = (imageSliceWmax + tmemMask) / tmemShift + 1;
+        tmemSliceLines = tmemSize / tmemSliceWmax;
+        imageSliceLines = tmemSliceLines - flagBilerp;
+        frameSliceLines = (imageSliceLines << 20) / scaleH;
+
+        imageLYoffset = (imageY0 - imageYorig) << 5;
+        if (imageLYoffset < 0) {
+            imageLYoffset -= (scaleH - 1);
+        }
+        frameLYoffset = imageLYoffset / scaleH;
+        frameLYoffset <<= 10;
+
+        if (frameLYoffset >= 0) {
+            imageNumSlice = frameLYoffset / frameSliceLines;
+        } else {
+            imageNumSlice = (frameLYoffset - frameSliceLines + 1) / frameSliceLines;
+        }
+
+        frameLYslice = (frameLSliceL0 = frameSliceLines * imageNumSlice) & ~1023;
+        frameLHidden = frameLYoffset - frameLYslice;
+        imageLHidden = (frameLHidden >> 10) * scaleH;
+
+        frameLSliceL0 = (frameLSliceL0 & 1023) + frameSliceLines - frameLHidden;
+
+        imageT = (imageLHidden >> 5) & 31;
+        imageLHidden >>= 10;
+        // TODO: fake cast?
+        imageISliceL0 = imageSliceLines - (s16)imageLHidden;
+        imageIY0 = imageSliceLines * imageNumSlice + (imageYorig & ~31) / 32 + imageLHidden;
+        if (imageIY0 < 0) {
+            imageIY0 += (pBG->s.imageH >> 2);
+        }
+        if (imageIY0 >= (pBG->s.imageH >> 2)) {
+            imageIY0 -= (pBG->s.imageH >> 2);
+        }
+
+        imageTop = (u32)pBG->s.imagePtr;
+        imageSrcWsize = (imageSrcW / tmemShift) << 3;
+        imagePtrX0 = (imageX0 / tmemShift) << 3;
+        imagePtr = imageTop + imageSrcWsize * imageIY0 + imagePtrX0;
+
+        imageS = imageX0 & tmemMask;
+        if (pBG->s.imageFlip & 1) {
+            imageS = -(imageS + imageW);
+        }
+    }
+
+    {
+        rdpSetTimg_w0 = 0x100000 + (imageSrcWsize >> 1) - 1;
+        rdpSetTile_w0 = 0x100000 + (tmemSliceWmax << 9);
+
+        pFrame->aTile[7].nSize = 2;
+        pFrame->aTile[7].nTMEM = 0;
+        pFrame->aTile[7].iTLUT = 0;
+        pFrame->aTile[7].nSizeX = tmemSliceWmax;
+        pFrame->aTile[7].nFormat = 0;
+        pFrame->aTile[7].nMaskS = 0;
+        pFrame->aTile[7].nMaskT = 0;
+        pFrame->aTile[7].nModeS = 0;
+        pFrame->aTile[7].nModeT = 0;
+        pFrame->aTile[7].nShiftS = 0;
+        pFrame->aTile[7].nShiftT = 0;
+        if (!frameDrawReset(pFrame, 1)) {
+            return false;
+        }
+
+        pFrame->aTile[0].nSize = pBG->s.imageSiz;
+        pFrame->aTile[0].nTMEM = 0;
+        pFrame->aTile[0].iTLUT = pBG->s.imagePal;
+        pFrame->aTile[0].nSizeX = tmemSliceWmax;
+        pFrame->aTile[0].nFormat = pBG->s.imageFmt;
+        pFrame->aTile[0].nMaskS = 0xF;
+        pFrame->aTile[0].nMaskT = 0xF;
+        pFrame->aTile[0].nModeS = 1;
+        pFrame->aTile[0].nModeT = 1;
+        pFrame->aTile[0].nShiftS = 0;
+        pFrame->aTile[0].nShiftT = 0;
+        if (!frameDrawReset(pFrame, 1)) {
+            return false;
+        }
+
+        pFrame->aTile[0].nX0 = 0;
+        pFrame->aTile[0].nY0 = 0;
+        pFrame->aTile[0].nX1 = 0;
+        pFrame->aTile[0].nY1 = 0;
+        if (!frameDrawReset(pFrame, 1)) {
+            return false;
+        }
+    }
+
+    {
+        s16 imageRemain;
+        s16 imageSliceH, frameSliceH;
+
+        imageRemain = tmemSrcLines - imageIY0;
+        imageSliceH = imageISliceL0;
+        frameSliceCount = frameLSliceL0;
+
+        while (true) {
+            frameSliceH = frameSliceCount >> 10;
+            if (frameSliceH <= 0) {
+                imageRemain -= imageSliceH;
+                if (imageRemain > 0) {
+                    imagePtr += imageSrcWsize * imageSliceH;
+                } else {
+                    imagePtr = imageTop - imageRemain * imageSrcWsize + imagePtrX0;
+                    imageRemain += tmemSrcLines;
+                }
+            } else {
+                Rectangle primitive;
+                s16 nS, nT;
+                s16 framePtrY1;
+
+                frameSliceCount &= 1023;
+                frameRemain -= frameSliceH;
+                if (frameRemain < 0) {
+                    frameSliceH += frameRemain;
+                    imageSliceH += (frameRemain * scaleH >> 10) + 1;
+                    if (imageSliceH > imageSliceLines) {
+                        imageSliceH = imageSliceLines;
+                    }
+                }
+                tmemLoad(pFrame, pRSP, &imagePtr, &imageRemain, imageSliceH, flagBilerp);
+
+                framePtrY1 = framePtrY0 + frameSliceH;
+
+                primitive.iTile = 0;
+                primitive.bFlip = false;
+
+                nS = imageS - 8 * pFrame->aTile[primitive.iTile].nX0;
+                nT = imageT - 8 * pFrame->aTile[primitive.iTile].nY0;
+                primitive.rS = nS / 32.0f;
+                primitive.rT = nT / 32.0f;
+
+                primitive.rDeltaS = scaleW / 1024.0f;
+                primitive.rDeltaT = scaleH / 1024.0f;
+                if (pBG->s.imageFlip & 1) {
+                    primitive.rS *= -1.0f;
+                    primitive.rDeltaS *= -1.0f;
+                }
+                primitive.nX0 = frameX0;
+                primitive.nY0 = framePtrY0 << 2;
+                primitive.nX1 = frameX1;
+                primitive.nY1 = framePtrY1 << 2;
+                if (!pFrame->aDraw[3](pFrame, &primitive)) {
+                    return false;
+                }
+
+                framePtrY0 = framePtrY1;
+                if (frameRemain <= 0) {
+                    return true;
+                }
+            }
+
+            frameSliceCount += frameSliceLines;
+            imageSliceH = imageSliceLines;
+            imageT = 0;
+        }
+    }
+}
 
 bool rspFillObjTxtr(Rsp* pRSP, s32 nAddress, union __anon_0x5FC1B* pTxtr, u32* pLoadType);
 #pragma GLOBAL_ASM("asm/non_matchings/rsp/rspFillObjTxtr.s")
