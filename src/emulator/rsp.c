@@ -2802,8 +2802,7 @@ bool guS2DEmuBgRect1Cyc(Rsp* pRSP, Frame* pFrame, __anon_0x5F2FB* pBG) {
         imageSrcW = pBG->s.imageW << 3;
         imageSrcH = pBG->s.imageH << 3;
 
-        imageW = frameW * scaleW >> 7;
-        imageSliceW = imageW + (flagBilerp << 5);
+        imageSliceW = (imageW = frameW * scaleW >> 7) + flagBilerp * 32;
         if (pBG->s.imageFlip & 1) {
             imageX0 = pBG->s.imageX + (pixX1 * scaleW >> 7);
         } else {
@@ -2981,9 +2980,9 @@ bool guS2DEmuBgRect1Cyc(Rsp* pRSP, Frame* pFrame, __anon_0x5F2FB* pBG) {
 
                 nS = imageS - 8 * pFrame->aTile[primitive.iTile].nX0;
                 nT = imageT - 8 * pFrame->aTile[primitive.iTile].nY0;
+
                 primitive.rS = nS / 32.0f;
                 primitive.rT = nT / 32.0f;
-
                 primitive.rDeltaS = scaleW / 1024.0f;
                 primitive.rDeltaT = scaleH / 1024.0f;
                 if (pBG->s.imageFlip & 1) {
