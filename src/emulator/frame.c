@@ -745,8 +745,851 @@ static inline bool frameFreeTLUT(Frame* pFrame, FrameTexture* pTexture) {
     return true;
 }
 
-static bool frameMakePixels(Frame* pFrame, FrameTexture* pTexture, Tile* pTile, bool bReload);
-#pragma GLOBAL_ASM("asm/non_matchings/frame/frameMakePixels.s")
+#define G_IM_SIZ_4b     0
+#define G_IM_SIZ_8b     1
+#define G_IM_SIZ_16b    2
+#define G_IM_SIZ_32b    3
+
+#define G_IM_FMT_RGBA   0
+#define G_IM_FMT_YUV    1
+#define G_IM_FMT_CI     2
+#define G_IM_FMT_IA     3
+#define G_IM_FMT_I      4
+
+#define G_TX_WRAP  (1 << 0)
+#define G_TX_CLAMP (1 << 1)
+
+// https://ultra64.ca/files/documentation/online-manuals/man/pro-man/pro13/index13.8.html
+static bool frameMakePixels(Frame* pFrame, FrameTexture* pTexture, Tile* pTile, bool bReload) {
+    // Parameters
+    // struct __anon_0x24C38* pFrame; // r19
+    // struct _FRAME_TEXTURE* pTexture; // r16
+    // struct __anon_0x247BF* pTile; // r26
+    // s32 bReload; // r17
+
+    // Local variables
+    void* aPixel; // r24
+    s32 nSizeLine; // r18
+    s32 nFlip; // r9
+    s32 nSize; // r1+0x40
+
+    s32 pad[2];
+    s32 temp;
+    
+    s32 nCount; // r1+0x8
+    s32 nMode; // r1+0x8
+    s32 nSizeX; // r30
+    s32 nSizeY; // r15
+    s32 nSource; // r10
+    s32 nTarget; // r11
+    s32 iPixelX; // r3
+    s32 iPixelY; // r20
+    s32 iTarget; // r1+0x8
+    u8 nData8; // r31
+    u16 nData16; // r31
+    u32 nData32; // r31
+    s32 nSizeTextureX; // r1+0x8
+    s32 nSizeTextureY; // r26
+    // s32 lineX; // r1+0x8
+    // s32 lineY; // r1+0x8
+    s32 linePixX; // r4
+    s32 lineStep; // r5
+    s32 tmemStart; // r21
+    s32 tmemEnd; // r23
+    s32 __nSizeX; // r5
+    s32 __nSizeY; // r6
+    u32 rgb[3]; // r1+0x24
+    u32 yuv[3]; // r1+0x18
+
+    // References
+    // -> static u8 sRemapI$746[8];
+
+    s32 var_r14;
+    s32 var_r27;
+    s32 var_r28;
+    s32 var_r29;
+
+    if (bReload) {
+        nSizeX = pTexture->nSizeX;
+        nSizeY = pTexture->nSizeY;
+    } else {
+        nMode = 0;
+        pTexture->nMode = 0x1000;
+        pTexture->eWrapT = GX_MAX_TEXWRAPMODE;
+        pTexture->eWrapS = GX_MAX_TEXWRAPMODE;
+
+        if ((pTile->nModeS & G_TX_CLAMP) || pTile->nMaskS == 0) {
+            nMode |= 1;
+            nSizeX = (pTile->nX1 >> 2) - (pTile->nX0 >> 2) + 1;
+            if (nSizeX < 0) {
+                nSizeX = -nSizeX;
+            }
+        } else {
+            nSizeX = 1 << pTile->nMaskS;
+        }
+
+        if ((pTile->nModeT & G_TX_CLAMP) || pTile->nMaskT == 0) {
+            nMode |= 2;
+            nSizeY = (pTile->nY1 >> 2) - (pTile->nY0 >> 2) + 1;
+            if (nSizeY < 0) {
+                nSizeY = -nSizeY;
+            }
+        } else {
+            nSizeY = 1 << pTile->nMaskT;
+        }
+
+        if (nSizeX + nSizeY > 399) {
+            __nSizeX = nSizeX;
+            __nSizeY = nSizeY;
+
+            if (nMode & 1) {
+                nSizeX = 1 << pTile->nMaskS;
+            } else {
+                nSizeX = (pTile->nX1 >> 2) - (pTile->nX0 >> 2) + 1;
+            }
+
+            if (nSizeX <= 0 || nSizeX > 128) {
+                nSizeX = __nSizeX;
+            } else {
+                pTexture->nMode |= 1;
+            }
+
+            if (nMode & 2) {
+                nSizeY = 1 << pTile->nMaskT;
+            } else {
+                nSizeY = (pTile->nY1 >> 2) - (pTile->nY0 >> 2) + 1;
+            }
+
+            if (nSizeY <= 0 || nSizeY > 128) {
+                nSizeY = __nSizeY;
+            } else {
+                pTexture->nMode |= 2;
+            }
+        }
+    }
+
+    if (pTile->nMaskS > 0) {
+        var_r27 = 1 << pTile->nMaskS;
+    } else {
+        var_r27 = nSizeX + 1;
+    }
+
+    if (pTile->nMaskT > 0) {
+        var_r28 = 1 << pTile->nMaskT;
+    } else {
+        var_r28 = nSizeY + 1;
+    }
+
+    if (pTile->nModeS & G_TX_WRAP) {
+        var_r29 = 1;
+    } else {
+        var_r29 = 0;
+    }
+
+    if (pTile->nModeT & G_TX_WRAP) {
+        var_r14 = 1;
+    } else {
+        var_r14 = 0;
+    }
+
+    if ((pTexture->nSizeX = nSizeX) <= 0 || (pTexture->nSizeY = nSizeY) <= 0) {
+        pTexture->nSizeY = 0;
+        pTexture->nSizeX = 0;
+        return false;
+    }
+
+    if (pTile->nFormat == G_IM_FMT_RGBA && pTile->nSize == G_IM_SIZ_4b) {
+        pTile->nFormat = G_IM_FMT_IA;
+    }
+    if (pTile->nFormat == G_IM_FMT_I && pTile->nSize == G_IM_SIZ_16b) {
+        pTile->nFormat = G_IM_FMT_IA;
+    }
+
+    if (pTile->nFormat == G_IM_FMT_RGBA) {
+        if (pTile->nSize == G_IM_SIZ_16b) {
+            nCount = 2;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_RGB5A3;
+                if ((pTexture->nSizeX & 3) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 3) & ~3;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY * 2) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            tmemStart = nSource = pTile->nTMEM * 4;
+            nSizeLine = pTile->nSizeX * 4;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 2);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData16 = pFrame->TMEM.data.u16[(nSource & 0x7FF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 2)) * 16;
+                    iTarget = (iPixelX & 3) + (iPixelY & 3) * 4 + temp;
+                    if (nData16 & 1) {
+                        ((u16*)aPixel)[iTarget] = (((nData16 >> 11) & 0x1F) << 10) | (((nData16 >> 6) & 0x1F) << 5) | ((nData16 >> 1) & 0x1F) | 0x8000;
+                    } else {
+                        ((u16*)aPixel)[iTarget] = (((nData16 >> 12) & 0xF) << 8) | (((nData16 >> 7) & 0xF) << 4) | ((nData16 >> 2) & 0xF);
+                    }
+                    iPixelX++;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 2;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 2;
+                    }
+                }
+            }
+        } else if (pTile->nSize == G_IM_SIZ_32b) {
+            nCount = 4;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_RGBA8;
+                if ((pTexture->nSizeX & 3) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 3) & ~3;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY * 4) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            tmemStart = nSource = pTile->nTMEM * 4;
+            nSizeLine = pTile->nSizeX * 4;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 2);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData32 = pFrame->TMEM.data.u32[(nSource & 0x3FF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 2)) * 32;
+                    iTarget = (iPixelX & 3) + (iPixelY & 3) * 4 + temp;
+                    ((u16*)aPixel)[iTarget] = ((nData32 & 0xFF) << 8) | (nData32 >> 24);
+                    ((u16*)aPixel)[iTarget + 16] = (((nData32 >> 16) & 0xFF) << 8) | ((nData32 >> 8) & 0xFF);
+                    iPixelX += 1;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 2;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 2;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+    } else if (pTile->nFormat == G_IM_FMT_CI) {
+        if (pTile->nSize == G_IM_SIZ_8b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_C8;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), (pTexture->nSizeX * pTexture->nSizeY + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            tmemStart = nSource = pTile->nTMEM * 8;
+            nSizeLine = pTile->nSizeX * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            if (!frameMakeTLUT(pFrame, pTexture, 0x100, 0, bReload)) {
+                return false;
+            }
+
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = (iPixelX & 7) + (iPixelY & 3) * 8 + temp;
+                    ((u8*)aPixel)[iTarget] = nData8;
+                    iPixelX += 1;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 4;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 4;
+                    }
+                }
+            }
+        } else if (pTile->nSize == G_IM_SIZ_4b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_C4;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 7) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 7) & ~7;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((((pTexture->nSizeX + 1) >> 1) * pTexture->nSizeY) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            nSizeLine = pTile->nSizeX * 8;
+            tmemStart = nSource = pTile->nTMEM * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            if (!frameMakeTLUT(pFrame, pTexture, 0x10, pTile->iTLUT * 0x10, bReload)) {
+                return false;
+            }
+            
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 3) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 2;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + ((linePixX ^ nFlip) >> 1)];
+                        linePixX += lineStep;
+                        if (lineStep < 0) {
+                            nData8 = (nData8 << 4) | (nData8 >> 4);
+                        }
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = ((iPixelX >> 1) & 3) + (iPixelY & 7) * 4 + temp;
+                    ((u8*)aPixel)[iTarget] = nData8;
+                    iPixelX += 2;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 8;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 8;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+    } else if (pTile->nFormat == G_IM_FMT_IA) {
+        if (pTile->nSize == G_IM_SIZ_16b) {
+            nCount = 2;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_IA8;
+                if ((pTexture->nSizeX & 3) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 3) & ~3;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY * 2) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            nSizeLine = pTile->nSizeX * 4;
+            nSource = pTile->nTMEM * 4;
+            tmemStart = nSource = pTile->nTMEM * 4;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 2);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData16 = pFrame->TMEM.data.u16[(nSource & 0x7FF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 2)) * 16;
+                    iTarget = (iPixelX & 3) + (iPixelY & 3) * 4 + temp;
+                    ((u16*)aPixel)[iTarget] = ((nData16 & 0xFF) << 8) | ((nData16 >> 8) & 0xFF);
+                    iPixelX += 1;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 2;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 2;
+                    }
+                }
+            }
+        } else if (pTile->nSize == G_IM_SIZ_8b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_IA4;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            tmemStart = nSource = pTile->nTMEM * 8;
+            nSizeLine = pTile->nSizeX * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = (iPixelX & 7) + (iPixelY & 3) * 8 + temp;
+                    ((u8*)aPixel)[iTarget] = ((nData8 & 0xF) << 4) | ((nData8 >> 4) & 0xF);
+                    iPixelX += 1;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 4;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 4;
+                    }
+                }
+            }
+        } else if (pTile->nSize == G_IM_SIZ_4b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_IA4;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 7) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 7) & ~7;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+        
+            nSizeLine = pTile->nSizeX * 8;
+            tmemStart = nSource = pTile->nTMEM * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 2;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + ((linePixX ^ nFlip) >> 1)];
+                        if (lineStep < 0) {
+                            nData8 = (nData8 >> 4) | (nData8 << 4);
+                        }
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = (iPixelX & 7) + (iPixelY & 3) * 8 + temp;
+                    ((u8*)aPixel)[iTarget] = ((((nData8 >> 4) & 1) * 0xF) << 4) | sRemapI[(nData8 >> 5) & 7];
+                    temp = (nTarget + ((iPixelX + 1) >> 3)) * 32;
+                    iTarget = ((iPixelX + 1) & 7) + (iPixelY & 3) * 8 + temp;
+                    ((u8*)aPixel)[iTarget] = ((((nData8 >> 0) & 1) * 0xF) << 4) | sRemapI[(nData8 >> 1) & 7];
+                    iPixelX += 2;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 8;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 8;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+    } else if (pTile->nFormat == G_IM_FMT_I) {
+        if (pTile->nSize == G_IM_SIZ_8b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_I8;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 3) != 0) {
+                    pTexture->nSizeY =(pTexture->nSizeY + 3) & ~3;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            tmemStart = nSource = pTile->nTMEM * 8;
+            nSizeLine = pTile->nSizeX * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 2) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 1;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + (linePixX ^ nFlip)];
+                        linePixX += lineStep;
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = (iPixelX & 7) + (iPixelY & 3) * 8 + temp;
+                    ((u8*)aPixel)[iTarget] = nData8;
+                    iPixelX += 1;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 4;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 4;
+                    }
+                }
+            }
+        } else if (pTile->nSize == G_IM_SIZ_4b) {
+            nCount = 1;
+            if (bReload) {
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            } else {
+                pTexture->eFormat = GX_TF_I4;
+                if ((pTexture->nSizeX & 7) != 0) {
+                    pTexture->nSizeX = (pTexture->nSizeX + 7) & ~7;
+                }
+                if ((pTexture->nSizeY & 7) != 0) {
+                    pTexture->nSizeY = (pTexture->nSizeY + 7) & ~7;
+                }
+                if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((((pTexture->nSizeX + 1) >> 1) * pTexture->nSizeY) + 0x7FF) / 0x800)) {
+                    return false;
+                }
+                aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+            }
+
+            nSizeLine = pTile->nSizeX * 8;
+            tmemStart = nSource = pTile->nTMEM * 8;
+            tmemEnd = tmemStart + (nSizeLine * var_r28);
+            iPixelY = nFlip = 0;
+            nSizeTextureX = pTexture->nSizeX;
+            nSizeTextureY = pTexture->nSizeY;
+            while (iPixelY < nSizeTextureY) {
+                nTarget = (iPixelY >> 3) * (nSizeTextureX >> 3);
+                iPixelX = 0;
+                linePixX = 0;
+                lineStep = 2;
+                while (iPixelX < nSizeTextureX) {
+                    if (iPixelX < nSizeX) {
+                        nData8 = pFrame->TMEM.data.u8[(nSource & 0xFFF) + ((linePixX ^ nFlip) >> 1)];
+                        linePixX += lineStep;
+                        if (lineStep < 0) {
+                            nData8 = (nData8 >> 4) | (nData8 << 4);
+                        }
+                        if (linePixX >= var_r27 || linePixX < 0) {
+                            if (var_r29 != 0) {
+                                lineStep = -lineStep;
+                                linePixX += lineStep;
+                            } else {
+                                linePixX = 0;
+                            }
+                        }
+                    }
+                    temp = (nTarget + (iPixelX >> 3)) * 32;
+                    iTarget = ((iPixelX >> 1) & 3) + (iPixelY & 7) * 4 + temp;
+                    ((u8*)aPixel)[iTarget] = nData8 & 0xFF;
+                    iPixelX += 2;
+                }
+                iPixelY += 1;
+                if (iPixelY < nSizeY) {
+                    nSource += nSizeLine;
+                    if (nSource >= tmemEnd || nSource < tmemStart) {
+                        if (var_r14 != 0) {
+                            nSizeLine = -nSizeLine;
+                            nSource += nSizeLine;
+                        } else {
+                            if (nSource % 2 == tmemStart % 2) {
+                                nFlip ^= 8;
+                            }
+                            nSource = tmemStart;
+                        }
+                    } else {
+                        nFlip ^= 8;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+    } else if (pTile->nFormat == G_IM_FMT_YUV) {   
+        nCount = 2;
+        if (bReload) {
+            aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+        } else {
+            pTexture->eFormat = GX_TF_RGB5A3;
+            if ((pTexture->nSizeX & 3) != 0) {
+                pTexture->nSizeX = (pTexture->nSizeX + 3) & ~3;
+            }
+            if ((pTexture->nSizeY & 3) != 0) {
+                pTexture->nSizeY = (pTexture->nSizeY + 3) & ~3;
+            }
+            if (!packTakeBlocks(&pTexture->iPackPixel, pFrame->anPackPixel, ARRAY_COUNT(pFrame->anPackPixel), ((pTexture->nSizeX * pTexture->nSizeY * 2) + 0x7FF) / 0x800)) {
+                return false;
+            }
+            aPixel = (u8*)pFrame->aPixelData + ((pTexture->iPackPixel & 0xFFFF) << 11);
+        }
+
+        nFlip = 0;
+        iPixelY = 0;
+        nSource = 0;
+        nSizeY >>= 1;
+        tmemStart = pTile->nTMEM * 4;
+        nSizeLine = pTile->nSizeX * 4;
+        nSizeTextureX = pTexture->nSizeX;
+        nSizeTextureY = pTexture->nSizeY;
+        while (iPixelY < nSizeY) {
+            nTarget = (iPixelY >> 2) * (nSizeTextureX >> 2);
+            iPixelX = 0;
+            while (iPixelX < nSizeX) {
+                nData16 = pFrame->TMEM.data.u16[(iPixelX ^ nFlip) + (nSource + tmemStart)];
+                yuv[0] = nData16 & 0xFF;
+                yuv[1] = (nData16 >> 8) & 0xFF;
+
+                nData16 = pFrame->TMEM.data.u16[(iPixelX ^ nFlip) + (nSource + tmemStart) + 1];
+                yuv[2] = (nData16 >> 8) & 0xFF;
+                frameConvertYUVtoRGB(yuv, rgb);
+
+                temp = (nTarget + (iPixelX >> 2)) * 16;
+                iTarget = (iPixelX & 3) + (iPixelY & 3) * 4 + temp;
+                ((u16*)aPixel)[iTarget] = (((rgb[0] >> 1) & 0xF) << 8) | (((rgb[1] >> 1) & 0xF) << 4) | ((rgb[2] >> 1) & 0xF) | 0x7000;
+
+                yuv[0] = nData16 & 0xFF;
+                frameConvertYUVtoRGB(yuv, rgb);
+                ((u16*)aPixel)[iTarget + 1] = (((rgb[0] >> 1) & 0xF) << 8) | (((rgb[1] >> 1) & 0xF) << 4) | ((rgb[2] >> 1) & 0xF) | 0x7000;
+
+                iPixelX += 2;
+            }
+            nFlip ^= 2;
+            nSource += nSizeLine;
+            iPixelY += 1;
+        }
+    }
+
+    DCStoreRange(aPixel, pTexture->nSizeX * pTexture->nSizeY * nCount);
+    return true;
+}
 
 static inline bool frameFreePixels(Frame* pFrame, FrameTexture* pTexture) {
     if (!frameFreeTLUT(pFrame, pTexture)) {
@@ -4599,11 +5442,6 @@ bool frameLoadTLUT(Frame* pFrame, s32 nCount, s32 iTile) {
 
     return true;
 }
-
-#define G_IM_SIZ_4b 0
-#define G_IM_SIZ_8b 1
-#define G_IM_SIZ_16b 2
-#define G_IM_SIZ_32b 3
 
 bool frameLoadTMEM(Frame* pFrame, FrameLoadType eType, s32 iTile) {
     // Parameters
