@@ -1997,6 +1997,7 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
     s32 pad1;
     s32 iJump; // r23
     s32 nAddress; // r29
+    s32 nReturnAddress;
     s32 nDeltaAddress; // r21
     bool bFlag; // r15
     s32 nAddressJump; // r6
@@ -2339,14 +2340,14 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
                             EMIT_PPC(iCode, 0x60E70000 | (((u32)nAddress + 8) & 0xFFFF));
                             EMIT_PPC(iCode, 0x90E30000 + OFFSETOF(pCPU, nReturnAddrLast));
                             if ((iRegisterB = ganMapGPR[31]) & 0x100) {
-                                nTarget = (u32)&anCode[iCode] + 20;
-                                EMIT_PPC(iCode, 0x3CA00000 | ((u32)nTarget >> 16));
-                                EMIT_PPC(iCode, 0x60A50000 | ((u32)nTarget & 0xFFFF));
+                                nReturnAddress = (u32)&anCode[iCode] + 20;
+                                EMIT_PPC(iCode, 0x3CA00000 | ((u32)nReturnAddress >> 16));
+                                EMIT_PPC(iCode, 0x60A50000 | ((u32)nReturnAddress & 0xFFFF));
                                 EMIT_PPC(iCode, 0x90A30000 + ((OFFSETOF(pCPU, aGPR[31]) + 4) & 0xFFFF));
                             } else {
-                                nTarget = (u32)&anCode[iCode] + 16;
-                                EMIT_PPC(iCode, 0x3C000000 | ((u32)nTarget >> 16) | (iRegisterB << 21));
-                                EMIT_PPC(iCode, 0x60000000 | ((u32)nTarget & 0xFFFF) | (iRegisterB << 21) |
+                                nReturnAddress = (u32)&anCode[iCode] + 16;
+                                EMIT_PPC(iCode, 0x3C000000 | ((u32)nReturnAddress >> 16) | (iRegisterB << 21));
+                                EMIT_PPC(iCode, 0x60000000 | ((u32)nReturnAddress & 0xFFFF) | (iRegisterB << 21) |
                                                     (iRegisterB << 16));
                             }
                             if ((iRegisterA = ganMapGPR[MIPS_RS(nOpcode)]) & 0x100) {
@@ -3781,14 +3782,14 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
                             EMIT_PPC(iJump, 0x40800000 | (((iCode - iJump) * 4) & 0xFFFC));
 
                             iJump += 3;
-                            nTarget = (u32)&anCode[iCode] + (var_r22 - var_r24);
+                            nReturnAddress = (u32)&anCode[iCode] + (var_r22 - var_r24);
                             if ((iRegisterB = ganMapGPR[31]) & 0x100) {
-                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nTarget >> 16));
-                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nTarget & 0xFFFF));
+                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nReturnAddress >> 16));
+                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nReturnAddress & 0xFFFF));
                                 EMIT_PPC(iJump, 0x90A30000 + ((OFFSETOF(pCPU, aGPR[31]) + 4) & 0xFFFF));
                             } else {
-                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nTarget >> 16) | (iRegisterB << 21));
-                                EMIT_PPC(iJump, 0x60000000 | ((u32)nTarget & 0xFFFF) | (iRegisterB << 21) |
+                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nReturnAddress >> 16) | (iRegisterB << 21));
+                                EMIT_PPC(iJump, 0x60000000 | ((u32)nReturnAddress & 0xFFFF) | (iRegisterB << 21) |
                                                     (iRegisterB << 16));
                             }
                             break;
@@ -3832,14 +3833,14 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
                             EMIT_PPC(iJump, 0x41800000 | (((iCode - iJump) * 4) & 0xFFFC));
 
                             iJump += 3;
-                            nTarget = (u32)&anCode[iCode] + (var_r22 - var_r24);
+                            nReturnAddress = (u32)&anCode[iCode] + (var_r22 - var_r24);
                             if ((iRegisterB = ganMapGPR[31]) & 0x100) {
-                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nTarget >> 16));
-                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nTarget & 0xFFFF));
+                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nReturnAddress >> 16));
+                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nReturnAddress & 0xFFFF));
                                 EMIT_PPC(iJump, 0x90A30000 + ((OFFSETOF(pCPU, aGPR[31]) + 4) & 0xFFFF));
                             } else {
-                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nTarget >> 16) | (iRegisterB << 21));
-                                EMIT_PPC(iJump, 0x60000000 | ((u32)nTarget & 0xFFFF) | (iRegisterB << 21) |
+                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nReturnAddress >> 16) | (iRegisterB << 21));
+                                EMIT_PPC(iJump, 0x60000000 | ((u32)nReturnAddress & 0xFFFF) | (iRegisterB << 21) |
                                                     (iRegisterB << 16));
                             }
                             break;
@@ -3886,14 +3887,14 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
                             EMIT_PPC(iJump, 0x40800000 | (((iCode - iJump) * 4) & 0xFFFC));
 
                             iJump += 3;
-                            nTarget = (u32)&anCode[iCode] + (var_r22 - var_r24);
+                            nReturnAddress = (u32)&anCode[iCode] + (var_r22 - var_r24);
                             if ((iRegisterB = ganMapGPR[31]) & 0x100) {
-                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nTarget >> 16));
-                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nTarget & 0xFFFF));
+                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nReturnAddress >> 16));
+                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nReturnAddress & 0xFFFF));
                                 EMIT_PPC(iJump, 0x90A30000 + ((OFFSETOF(pCPU, aGPR[31]) + 4) & 0xFFFF));
                             } else {
-                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nTarget >> 16) | (iRegisterB << 21));
-                                EMIT_PPC(iJump, 0x60000000 | ((u32)nTarget & 0xFFFF) | (iRegisterB << 21) |
+                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nReturnAddress >> 16) | (iRegisterB << 21));
+                                EMIT_PPC(iJump, 0x60000000 | ((u32)nReturnAddress & 0xFFFF) | (iRegisterB << 21) |
                                                     (iRegisterB << 16));
                             }
                             break;
@@ -3940,14 +3941,14 @@ static bool cpuGetPPC(Cpu* pCPU, s32* pnAddress, CpuFunction* pFunction, s32* an
                             EMIT_PPC(iJump, 0x41800000 | (((iCode - iJump) * 4) & 0xFFFC));
 
                             iJump += 3;
-                            nTarget = (u32)&anCode[iCode] + (var_r22 - var_r24);
+                            nReturnAddress = (u32)&anCode[iCode] + (var_r22 - var_r24);
                             if ((iRegisterB = ganMapGPR[31]) & 0x100) {
-                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nTarget >> 16));
-                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nTarget & 0xFFFF));
+                                EMIT_PPC(iJump, 0x3CA00000 | ((u32)nReturnAddress >> 16));
+                                EMIT_PPC(iJump, 0x60A50000 | ((u32)nReturnAddress & 0xFFFF));
                                 EMIT_PPC(iJump, 0x90A30000 + ((OFFSETOF(pCPU, aGPR[31]) + 4) & 0xFFFF));
                             } else {
-                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nTarget >> 16) | (iRegisterB << 21));
-                                EMIT_PPC(iJump, 0x60000000 | ((u32)nTarget & 0xFFFF) | (iRegisterB << 21) |
+                                EMIT_PPC(iJump, 0x3C000000 | ((u32)nReturnAddress >> 16) | (iRegisterB << 21));
+                                EMIT_PPC(iJump, 0x60000000 | ((u32)nReturnAddress & 0xFFFF) | (iRegisterB << 21) |
                                                     (iRegisterB << 16));
                             }
                             break;
